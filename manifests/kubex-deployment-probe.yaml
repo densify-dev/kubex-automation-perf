@@ -3,14 +3,18 @@ kind: Deployment
 metadata:
   name: kubex-deployment-probe
   namespace: kubex
+  labels:
+    control-plane: controller-manager
 spec:
   replicas: 1
   selector:
     matchLabels:
+      control-plane: controller-manager
       app: kubex-deployment-probe
   template:
     metadata:
       labels:
+        control-plane: controller-manager
         app: kubex-deployment-probe
     spec:
       containers:

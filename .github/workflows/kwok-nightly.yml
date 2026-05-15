@@ -161,7 +161,6 @@ jobs:
             "${version_args[@]}" \
             --set-string kubexCredentials.username="${KUBEX_USERNAME}" \
             --set-string kubexCredentials.epassword="${KUBEX_EPASSWORD}" \
-            --post-renderer "./scripts/strip_pause_annotation.py" \
             -f "${SCENARIO_DIR}/install-values.yaml"
 
       - name: Wait for controller health
