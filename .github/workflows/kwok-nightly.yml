@@ -124,6 +124,16 @@ jobs:
             --namespace "${RELEASE_NAMESPACE}" \
             --create-namespace
 
+      - name: Probe kubex namespace deployment controller
+        run: |
+          kubectl apply -f manifests/kubex-deployment-probe.yaml
+          if ! kubectl wait --for=condition=Available deployment/kubex-deployment-probe -n kubex --timeout=90s; then
+            kubectl get deploy,rs,pod -n kubex -o wide
+            kubectl describe deployment/kubex-deployment-probe -n kubex
+            exit 1
+          fi
+          kubectl delete deployment kubex-deployment-probe -n kubex --wait=false
+
       - name: Apply workloads in batches
         run: |
           kubectl apply -f "${SCENARIO_DIR}/namespaces.yaml"
