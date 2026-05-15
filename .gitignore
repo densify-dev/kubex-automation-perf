@@ -17,3 +17,4 @@ htmlcov/
 # Local run artifacts
 artifacts/
 metrics-usage.yaml
+.env

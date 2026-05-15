@@ -68,13 +68,17 @@ def deployment_status(namespace: str, name: str) -> tuple[str, dict[str, object]
     if result.returncode != 0:
         return result.stderr.strip() or result.stdout.strip() or "deployment not found", None
     payload = json.loads(result.stdout)
+    spec = payload.get("spec", {})
     status = payload.get("status", {})
     conditions = {item.get("type"): item for item in status.get("conditions", []) if isinstance(item, dict)}
     summary = {
-        "desired": status.get("replicas", 0),
+        "desired": spec.get("replicas", 0),
+        "current": status.get("replicas", 0),
         "updated": status.get("updatedReplicas", 0),
         "available": status.get("availableReplicas", 0),
         "unavailable": status.get("unavailableReplicas", 0),
+        "observed_generation": status.get("observedGeneration"),
+        "generation": payload.get("metadata", {}).get("generation"),
         "progressing": conditions.get("Progressing", {}).get("status"),
         "available_condition": conditions.get("Available", {}).get("status"),
         "replica_failure": conditions.get("ReplicaFailure", {}).get("status"),
@@ -106,10 +110,10 @@ def controller_logs(namespace: str) -> str:
         namespace,
         "-l",
         "control-plane=controller-manager",
-        "-c",
-        "manager",
         "--since=10m",
         "--tail=40",
+        "--all-containers=true",
+        "--prefix",
     ])
     if result.returncode != 0:
         return result.stderr.strip() or result.stdout.strip() or "controller logs unavailable"
@@ -119,6 +123,19 @@ def controller_logs(namespace: str) -> str:
 def controller_pods(namespace: str) -> str:
     result = kubectl(["get", "pod", "-n", namespace, "-l", "control-plane=controller-manager", "-o", "wide"])
     return result.stdout.strip() if result.returncode == 0 else (result.stderr.strip() or result.stdout.strip() or "no controller pods")
+
+
+def deployment_yaml(namespace: str, name: str) -> str:
+    result = kubectl(["get", "deployment", name, "-n", namespace, "-o", "yaml"])
+    return result.stdout.strip() if result.returncode == 0 else (result.stderr.strip() or result.stdout.strip() or "deployment yaml unavailable")
+
+
+def recent_events(namespace: str) -> str:
+    result = kubectl(["get", "events", "-n", namespace, "--sort-by=.lastTimestamp"])
+    if result.returncode != 0:
+        return result.stderr.strip() or result.stdout.strip() or "events unavailable"
+    lines = [line for line in result.stdout.splitlines() if line.strip()]
+    return "\n".join(lines[-25:]) if lines else "events empty"
 
 
 def wait_for_controller_health(namespace: str, release: str, timeout: int, interval: int) -> int:
@@ -141,6 +158,10 @@ def wait_for_controller_health(namespace: str, release: str, timeout: int, inter
                     gc or gc_msg,
                     "controller pods:",
                     pods,
+                    "recent events:",
+                    recent_events(namespace),
+                    "deployment yaml:",
+                    deployment_yaml(namespace, release),
                     "controller logs:",
                     controller_logs(namespace),
                 ]
