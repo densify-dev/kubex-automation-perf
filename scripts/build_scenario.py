@@ -52,6 +52,8 @@ def render_install_values(kubex_host: str, kubex_cluster_name: str) -> str:
           limits:
             cpu: "1"
             memory: 6Gi
+        nodeSelector:
+          node-role.kubernetes.io/control-plane: ""
         """
     )
 
