@@ -128,7 +128,7 @@ jobs:
 
       - name: Wait for workload counts
         run: |
-          bash scripts/wait_for_count.sh \
+          python3 scripts/kwok_orchestrate.py wait-count \
             --resource deployments.apps,statefulsets.apps,cronjobs.batch \
             --selector "app.kubernetes.io/name=kwok-perf" \
             --expected "${WORKLOADS}" \
@@ -150,16 +150,10 @@ jobs:
 
       - name: Wait for controller health
         run: |
-          kubectl rollout status deployment/${RELEASE_NAME} -n "${RELEASE_NAMESPACE}" --timeout=15m
-          for _ in $(seq 1 180); do
-            status=$(kubectl get globalconfiguration global-config -o jsonpath='{.status.conditions[?(@.type=="PodAdmissionWebhookHealthy")].status}' 2>/dev/null || true)
-            if [ "${status}" = "True" ]; then
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "controller webhook never reported healthy"
-          exit 1
+          python3 scripts/kwok_orchestrate.py wait-controller-health \
+            --namespace "${RELEASE_NAMESPACE}" \
+            --release "${RELEASE_NAME}" \
+            --timeout 15m
 
       - name: Start metrics collector
         run: |

@@ -12,6 +12,7 @@ Nightly GitHub Action for exercising `kubex-automation-engine` at scale on KWOK.
 - applies a cluster-wide `StaticPolicy`
 - creates 10k synthetic workloads by default across `Deployment`, `StatefulSet`, and `CronJob`
 - scrapes controller metrics during the run
+- prints live workload and controller health progress while waiting
 - uploads raw data and a run summary as artifacts
 
 Note: the chart still mounts the gateway secret volume even when the gateway container is disabled, so the workflow creates a placeholder `kubex-gateway-config` Secret.
@@ -42,9 +43,9 @@ The workflow is manually runnable too, with inputs for:
 ## Local script entry points
 
 - `scripts/build_scenario.py`
+- `scripts/kwok_orchestrate.py`
 - `scripts/collect_metrics.sh`
 - `scripts/collect_final_state.sh`
-- `scripts/wait_for_count.sh`
 - `scripts/summarize_metrics.py`
 
 ## Notes
