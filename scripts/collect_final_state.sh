@@ -36,6 +36,7 @@ mkdir -p "${output_dir}"
 kubectl get deploy,statefulsets,cronjobs -A -l app.kubernetes.io/name=kwok-perf -o wide >"${output_dir}/workloads.txt" 2>&1 || true
 kubectl get pod -A -l app.kubernetes.io/name=kwok-perf -o wide >"${output_dir}/pods.txt" 2>&1 || true
 kubectl get rs -A -l app.kubernetes.io/name=kwok-perf -o wide >"${output_dir}/replicasets.txt" 2>&1 || true
+kubectl get deploy,rs,pod -n "${namespace}" -o wide >"${output_dir}/controller-namespace.txt" 2>&1 || true
 kubectl get globalconfiguration global-config -o yaml >"${output_dir}/globalconfiguration.yaml" 2>&1 || true
 kubectl get clusterautomationstrategies >"${output_dir}/clusterautomationstrategies.txt" 2>&1 || true
 kubectl get clusterstaticpolicies >"${output_dir}/clusterstaticpolicies.txt" 2>&1 || true

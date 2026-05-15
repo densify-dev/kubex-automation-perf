@@ -121,12 +121,12 @@ def controller_logs(namespace: str) -> str:
 
 
 def controller_pods(namespace: str) -> str:
-    result = kubectl(["get", "pod", "-n", namespace, "-l", "control-plane=controller-manager", "-o", "wide"])
+    result = kubectl(["get", "pod", "-n", namespace, "-o", "wide"])
     return result.stdout.strip() if result.returncode == 0 else (result.stderr.strip() or result.stdout.strip() or "no controller pods")
 
 
 def controller_replicasets(namespace: str) -> str:
-    result = kubectl(["get", "rs", "-n", namespace, "-l", "control-plane=controller-manager", "-o", "wide"])
+    result = kubectl(["get", "rs", "-n", namespace, "-o", "wide"])
     return result.stdout.strip() if result.returncode == 0 else (result.stderr.strip() or result.stdout.strip() or "no controller replicasets")
 
 
