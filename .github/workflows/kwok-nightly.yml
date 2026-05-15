@@ -94,6 +94,16 @@ jobs:
           kwokctl scale node --name "${CLUSTER_NAME}" --replicas "${NODES}"
           kubectl --kubeconfig kwok.kubeconfig wait --for=condition=Ready node --all --timeout=10m
 
+      - name: Probe deployment controller
+        run: |
+          kubectl apply -f manifests/deployment-controller-probe.yaml
+          if ! kubectl wait --for=condition=Available deployment/controller-probe -n deployment-probe --timeout=90s; then
+            kubectl get deploy,rs,pod -n deployment-probe -o wide
+            kubectl describe deployment/controller-probe -n deployment-probe
+            exit 1
+          fi
+          kubectl delete namespace deployment-probe --wait=false
+
       - name: Generate scenario manifests
         run: |
           python3 scripts/build_scenario.py \

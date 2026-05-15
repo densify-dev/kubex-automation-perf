@@ -125,6 +125,11 @@ def controller_pods(namespace: str) -> str:
     return result.stdout.strip() if result.returncode == 0 else (result.stderr.strip() or result.stdout.strip() or "no controller pods")
 
 
+def controller_replicasets(namespace: str) -> str:
+    result = kubectl(["get", "rs", "-n", namespace, "-l", "control-plane=controller-manager", "-o", "wide"])
+    return result.stdout.strip() if result.returncode == 0 else (result.stderr.strip() or result.stdout.strip() or "no controller replicasets")
+
+
 def deployment_yaml(namespace: str, name: str) -> str:
     result = kubectl(["get", "deployment", name, "-n", namespace, "-o", "yaml"])
     return result.stdout.strip() if result.returncode == 0 else (result.stderr.strip() or result.stdout.strip() or "deployment yaml unavailable")
@@ -158,6 +163,8 @@ def wait_for_controller_health(namespace: str, release: str, timeout: int, inter
                     gc or gc_msg,
                     "controller pods:",
                     pods,
+                    "controller replicasets:",
+                    controller_replicasets(namespace),
                     "recent events:",
                     recent_events(namespace),
                     "deployment yaml:",
@@ -178,6 +185,7 @@ def wait_for_controller_health(namespace: str, release: str, timeout: int, inter
 
     print(f"[{now_utc()}] timed out waiting for controller health", file=sys.stderr, flush=True)
     print_block("final controller pods", controller_pods(namespace))
+    print_block("final controller replicasets", controller_replicasets(namespace))
     print_block("final controller logs", controller_logs(namespace))
     return 1
 
