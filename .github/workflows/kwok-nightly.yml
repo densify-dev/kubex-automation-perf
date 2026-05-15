@@ -98,7 +98,9 @@ jobs:
       - name: Uncordon kind control-plane
         run: |
           kubectl get nodes -o wide
-          kubectl get nodes -o jsonpath='{range .items[?(@.metadata.labels.type!="kwok")]}{.metadata.name}{"\n"}{end}' | xargs -r kubectl uncordon
+          control_plane_nodes=$(python3 -c 'import json, subprocess; data=json.loads(subprocess.check_output(["kubectl", "get", "nodes", "-o", "json"], text=True)); names=[item["metadata"]["name"] for item in data.get("items", []) if "node-role.kubernetes.io/control-plane" in item.get("metadata", {}).get("labels", {}) or "node-role.kubernetes.io/master" in item.get("metadata", {}).get("labels", {})]; print("\n".join(names))')
+          printf '%s\n' "$control_plane_nodes" | xargs -r kubectl uncordon
+          printf '%s\n' "$control_plane_nodes" | xargs -r kubectl get node -o wide
 
       - name: Probe deployment controller
         run: |
