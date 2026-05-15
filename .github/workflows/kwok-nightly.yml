@@ -97,7 +97,7 @@ jobs:
 
       - name: Uncordon kind control-plane
         run: |
-          kubectl uncordon "${CLUSTER_NAME}-control-plane"
+          kubectl get nodes -o name | xargs -r kubectl uncordon
 
       - name: Probe deployment controller
         run: |
