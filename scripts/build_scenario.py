@@ -140,6 +140,25 @@ def workload_labels(namespace: str, index: int, indent: int) -> list[str]:
     ]
 
 
+def workload_scheduling(indent: int) -> list[str]:
+    prefix = " " * indent
+    return [
+        f"{prefix}affinity:",
+        f"{prefix}  nodeAffinity:",
+        f"{prefix}    requiredDuringSchedulingIgnoredDuringExecution:",
+        f"{prefix}      nodeSelectorTerms:",
+        f"{prefix}        - matchExpressions:",
+        f"{prefix}          - key: type",
+        f"{prefix}            operator: In",
+        f"{prefix}            values:",
+        f"{prefix}              - kwok",
+        f"{prefix}tolerations:",
+        f"{prefix}  - key: kwok.x-k8s.io/node",
+        f"{prefix}    operator: Exists",
+        f"{prefix}    effect: NoSchedule",
+    ]
+
+
 def render_workload(namespace: str, index: int, kind: str) -> str:
     workload_name = f"workload-{index:05d}"
 
@@ -167,6 +186,7 @@ def render_workload(namespace: str, index: int, kind: str) -> str:
                 "      containers:",
                 "        - name: app",
                 "          image: registry.k8s.io/pause:3.9",
+                *workload_scheduling(6),
             ]
         )
 
@@ -195,6 +215,7 @@ def render_workload(namespace: str, index: int, kind: str) -> str:
                 "      containers:",
                 "        - name: app",
                 "          image: registry.k8s.io/pause:3.9",
+                *workload_scheduling(6),
             ]
         )
 
@@ -219,6 +240,7 @@ def render_workload(namespace: str, index: int, kind: str) -> str:
                 *workload_labels(namespace, index, 12),
                 "        spec:",
                 "          restartPolicy: Never",
+                *workload_scheduling(10),
                 "          containers:",
                 "            - name: app",
                 "              image: registry.k8s.io/pause:3.9",

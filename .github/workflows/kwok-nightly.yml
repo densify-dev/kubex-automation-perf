@@ -78,11 +78,12 @@ jobs:
           curl -fsSL -o metrics-usage.yaml \
             https://github.com/kubernetes-sigs/kwok/releases/download/${KWOK_VERSION}/metrics-usage.yaml
 
-      - name: Create KWOK cluster
+      - name: Create kind KWOK cluster
         env:
           KWOK_KUBE_VERSION: v1.30.0
         run: |
           kwokctl create cluster \
+            --runtime kind \
             --name "${CLUSTER_NAME}" \
             --enable-metrics-server \
             -c metrics-usage.yaml
@@ -93,6 +94,10 @@ jobs:
         run: |
           kwokctl scale node --name "${CLUSTER_NAME}" --replicas "${NODES}"
           kubectl --kubeconfig kwok.kubeconfig wait --for=condition=Ready node --all --timeout=10m
+
+      - name: Uncordon kind control-plane
+        run: |
+          kubectl uncordon "${CLUSTER_NAME}-control-plane"
 
       - name: Probe deployment controller
         run: |
