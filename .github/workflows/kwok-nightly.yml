@@ -148,7 +148,7 @@ jobs:
           python3 scripts/kwok_orchestrate.py wait-controller-health \
             --namespace "${RELEASE_NAMESPACE}" \
             --release "${RELEASE_NAME}" \
-            --timeout 15m
+            --timeout 3m
 
       - name: Start metrics collector
         run: |
