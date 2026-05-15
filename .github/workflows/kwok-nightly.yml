@@ -134,21 +134,6 @@ jobs:
           fi
           kubectl delete deployment kubex-deployment-probe -n kubex --wait=false
 
-      - name: Apply workloads in batches
-        run: |
-          kubectl apply -f "${SCENARIO_DIR}/namespaces.yaml"
-          for file in "${SCENARIO_DIR}"/workloads/*.yaml; do
-            kubectl apply -f "$file"
-          done
-
-      - name: Wait for workload counts
-        run: |
-          python3 scripts/kwok_orchestrate.py wait-count \
-            --resource deployments.apps,statefulsets.apps,cronjobs.batch \
-            --selector "app.kubernetes.io/name=kwok-perf" \
-            --expected "${WORKLOADS}" \
-            --timeout 30m
-
       - name: Install automation engine
         run: |
           version_args=()
@@ -169,6 +154,21 @@ jobs:
             --namespace "${RELEASE_NAMESPACE}" \
             --release "${RELEASE_NAME}" \
             --timeout 3m
+
+      - name: Apply workloads in batches
+        run: |
+          kubectl apply -f "${SCENARIO_DIR}/namespaces.yaml"
+          for file in "${SCENARIO_DIR}"/workloads/*.yaml; do
+            kubectl apply -f "$file"
+          done
+
+      - name: Wait for workload counts
+        run: |
+          python3 scripts/kwok_orchestrate.py wait-count \
+            --resource deployments.apps,statefulsets.apps,cronjobs.batch \
+            --selector "app.kubernetes.io/name=kwok-perf" \
+            --expected "${WORKLOADS}" \
+            --timeout 30m
 
       - name: Start metrics collector
         run: |
