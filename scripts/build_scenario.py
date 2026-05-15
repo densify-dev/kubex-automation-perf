@@ -6,55 +6,53 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import textwrap
 
 
 def yaml_block(lines: list[str]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def render_install_values(cluster_name: str) -> str:
-    return yaml_block(
-        [
-            "createSecrets: false",
-            "gateway:",
-            "  enabled: false",
-            "  configSecretName: kubex-gateway-config",
-            "kubex:",
-            "  url:",
-            "    host: example.invalid",
-            "    scheme: https",
-            f"  clusterName: {cluster_name}",
-            "  recommendationsPath: \"\"",
-            "kubexCredentials:",
-            "  username: unused",
-            "  epassword: unused",
-            "metrics:",
-            "  enabled: true",
-            "  serviceMonitor:",
-            "    enabled: false",
-            "globalConfiguration:",
-            "  enabled: true",
-            "  automationEnabled: true",
-            "  suppressFetchRecommendations: true",
-            "  protectedNamespacePatterns:",
-            "    - kube-*",
-            "    - openshift-*",
-            "policyEvaluation:",
-            "  enabled: true",
-            "scope: []",
-            "policy:",
-            "  automationEnabled: true",
-            "  defaultPolicy: \"\"",
-            "  remoteEnablement: false",
-            "  policies: {}",
-            "resources:",
-            "  requests:",
-            "    cpu: 400m",
-            "    memory: 4Gi",
-            "  limits:",
-            "    cpu: \"1\"",
-            "    memory: 6Gi",
-        ]
+def render_install_values(kubex_host: str, kubex_cluster_name: str) -> str:
+    return textwrap.dedent(
+        f"""\
+        createSecrets: false
+        gateway:
+          enabled: false
+          configSecretName: kubex-gateway-config
+        kubex:
+          url:
+            host: '{kubex_host}'
+            scheme: https
+          clusterName: '{kubex_cluster_name}'
+          recommendationsPath: ""
+        metrics:
+          enabled: true
+          serviceMonitor:
+            enabled: false
+        globalConfiguration:
+          enabled: true
+          automationEnabled: true
+          suppressFetchRecommendations: true
+          protectedNamespacePatterns:
+            - kube-*
+            - openshift-*
+        policyEvaluation:
+          enabled: true
+        scope: []
+        policy:
+          automationEnabled: true
+          defaultPolicy: ""
+          remoteEnablement: false
+          policies: {{}}
+        resources:
+          requests:
+            cpu: 400m
+            memory: 4Gi
+          limits:
+            cpu: "1"
+            memory: 6Gi
+        """
     )
 
 
@@ -253,6 +251,8 @@ def main() -> int:
     parser.add_argument("--nodes", type=int, default=150)
     parser.add_argument("--batch-size", type=int, default=250)
     parser.add_argument("--cluster-name", default="kwok-nightly")
+    parser.add_argument("--kubex-host", default="automationtest.kubex.ai")
+    parser.add_argument("--kubex-cluster-name", default="automation-perf-test")
     parser.add_argument("--release-name", default="kubex-automation-engine")
     parser.add_argument("--release-namespace", default="kubex")
     parser.add_argument("--namespace-prefix", default="perf")
@@ -267,7 +267,9 @@ def main() -> int:
     namespace_count = max(1, min(args.nodes // 15 or 1, 10))
     namespaces = [f"{args.namespace_prefix}-{idx:02d}" for idx in range(1, namespace_count + 1)]
 
-    (output_dir / "install-values.yaml").write_text(render_install_values(args.cluster_name), encoding="utf-8")
+    (output_dir / "install-values.yaml").write_text(
+        render_install_values(args.kubex_host, args.kubex_cluster_name), encoding="utf-8"
+    )
     (output_dir / "namespaces.yaml").write_text("---\n".join(render_namespace(name) for name in namespaces), encoding="utf-8")
     (output_dir / "strategy.yaml").write_text(render_strategy(args.strategy_name), encoding="utf-8")
     (output_dir / "policy.yaml").write_text(

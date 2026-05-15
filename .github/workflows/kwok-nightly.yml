@@ -37,6 +37,8 @@ jobs:
       NODES: ${{ github.event_name == 'workflow_dispatch' && inputs.nodes || '150' }}
       CHART_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.chart_version || 'latest' }}
       CLUSTER_NAME: kwok-nightly
+      KUBEX_USERNAME: ${{ secrets.KUBEX_USERNAME }}
+      KUBEX_EPASSWORD: ${{ secrets.KUBEX_EPASSWORD }}
       RELEASE_NAME: kubex-automation-engine
       RELEASE_NAMESPACE: kubex
       KWOK_VERSION: v0.5.1
@@ -142,6 +144,8 @@ jobs:
             --namespace "${RELEASE_NAMESPACE}" \
             --create-namespace \
             "${version_args[@]}" \
+            --set-string kubexCredentials.username="${KUBEX_USERNAME}" \
+            --set-string kubexCredentials.epassword="${KUBEX_EPASSWORD}" \
             -f "${SCENARIO_DIR}/install-values.yaml"
 
       - name: Wait for controller health
