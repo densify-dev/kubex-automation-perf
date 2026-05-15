@@ -36,7 +36,20 @@ if [[ -z "${resource}" || -z "${selector}" || -z "${expected}" ]]; then
   exit 2
 fi
 
-deadline=$((SECONDS + timeout))
+timeout_seconds="${timeout}"
+case "${timeout}" in
+  *s)
+    timeout_seconds="${timeout%s}"
+    ;;
+  *m)
+    timeout_seconds=$(( ${timeout%m} * 60 ))
+    ;;
+  *h)
+    timeout_seconds=$(( ${timeout%h} * 3600 ))
+    ;;
+esac
+
+deadline=$((SECONDS + timeout_seconds))
 while (( SECONDS < deadline )); do
   count=$(kubectl get "${resource}" -A -l "${selector}" -o name 2>/dev/null | wc -l | tr -d ' ')
   if [[ "${count}" == "${expected}" ]]; then
