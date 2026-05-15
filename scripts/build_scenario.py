@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Helm values, policy CRs, and KWOK workloads for the nightly test."""
+"""Generate Helm values, policy CRs, and mixed KWOK workloads for the nightly test."""
 
 from __future__ import annotations
 
@@ -94,6 +94,8 @@ def render_policy(name: str, strategy_name: str, namespaces: list[str]) -> str:
         "        app.kubernetes.io/name: kwok-perf",
         "    workloadTypes:",
         "      - Deployment",
+        "      - StatefulSet",
+        "      - CronJob",
         "    namespaceSelector:",
         "      operator: In",
         "      values:",
@@ -118,40 +120,114 @@ def render_policy(name: str, strategy_name: str, namespaces: list[str]) -> str:
     return yaml_block(lines)
 
 
-def render_deployment(namespace: str, index: int) -> str:
+def workload_kind(index: int) -> str:
+    kinds = ["Deployment", "StatefulSet", "CronJob"]
+    return kinds[(index - 1) % len(kinds)]
+
+
+def workload_kind_counts(total: int) -> dict[str, int]:
+    counts = {"Deployment": 0, "StatefulSet": 0, "CronJob": 0}
+    for index in range(1, total + 1):
+        counts[workload_kind(index)] += 1
+    return counts
+
+
+def workload_labels(namespace: str, index: int, indent: int) -> list[str]:
+    prefix = " " * indent
+    return [
+        f"{prefix}app.kubernetes.io/name: kwok-perf",
+        f"{prefix}app.kubernetes.io/part-of: kwok-nightly",
+        f"{prefix}perf.kubex.ai/workload-index: \"{index}\"",
+        f"{prefix}perf.kubex.ai/namespace: {namespace}",
+    ]
+
+
+def render_workload(namespace: str, index: int, kind: str) -> str:
     workload_name = f"workload-{index:05d}"
-    workload_index = str(index)
-    return yaml_block(
-        [
-            "apiVersion: apps/v1",
-            "kind: Deployment",
-            "metadata:",
-            f"  name: {workload_name}",
-            f"  namespace: {namespace}",
-            "  labels:",
-            "    app.kubernetes.io/name: kwok-perf",
-            "    app.kubernetes.io/part-of: kwok-nightly",
-            f"    perf.kubex.ai/workload-index: \"{workload_index}\"",
-            f"    perf.kubex.ai/namespace: {namespace}",
-            "spec:",
-            "  replicas: 1",
-            "  selector:",
-            "    matchLabels:",
-            "      app.kubernetes.io/name: kwok-perf",
-            f"      perf.kubex.ai/workload-index: \"{workload_index}\"",
-            "  template:",
-            "    metadata:",
-            "      labels:",
-            "        app.kubernetes.io/name: kwok-perf",
-            "        app.kubernetes.io/part-of: kwok-nightly",
-            f"        perf.kubex.ai/workload-index: \"{workload_index}\"",
-            f"        perf.kubex.ai/namespace: {namespace}",
-            "    spec:",
-            "      containers:",
-            "        - name: app",
-            "          image: registry.k8s.io/pause:3.9",
-        ]
-    )
+
+    if kind == "Deployment":
+        return yaml_block(
+            [
+                "apiVersion: apps/v1",
+                "kind: Deployment",
+                "metadata:",
+                f"  name: {workload_name}",
+                f"  namespace: {namespace}",
+                "  labels:",
+                *workload_labels(namespace, index, 4),
+                "spec:",
+                "  replicas: 1",
+                "  selector:",
+                "    matchLabels:",
+                "      app.kubernetes.io/name: kwok-perf",
+                f"      perf.kubex.ai/workload-index: \"{index}\"",
+                "  template:",
+                "    metadata:",
+                "      labels:",
+                *workload_labels(namespace, index, 8),
+                "    spec:",
+                "      containers:",
+                "        - name: app",
+                "          image: registry.k8s.io/pause:3.9",
+            ]
+        )
+
+    if kind == "StatefulSet":
+        return yaml_block(
+            [
+                "apiVersion: apps/v1",
+                "kind: StatefulSet",
+                "metadata:",
+                f"  name: {workload_name}",
+                f"  namespace: {namespace}",
+                "  labels:",
+                *workload_labels(namespace, index, 4),
+                "spec:",
+                f"  serviceName: {workload_name}",
+                "  replicas: 1",
+                "  selector:",
+                "    matchLabels:",
+                "      app.kubernetes.io/name: kwok-perf",
+                f"      perf.kubex.ai/workload-index: \"{index}\"",
+                "  template:",
+                "    metadata:",
+                "      labels:",
+                *workload_labels(namespace, index, 8),
+                "    spec:",
+                "      containers:",
+                "        - name: app",
+                "          image: registry.k8s.io/pause:3.9",
+            ]
+        )
+
+    if kind == "CronJob":
+        return yaml_block(
+            [
+                "apiVersion: batch/v1",
+                "kind: CronJob",
+                "metadata:",
+                f"  name: {workload_name}",
+                f"  namespace: {namespace}",
+                "  labels:",
+                *workload_labels(namespace, index, 4),
+                "spec:",
+                "  schedule: \"*/5 * * * *\"",
+                "  suspend: true",
+                "  jobTemplate:",
+                "    spec:",
+                "      template:",
+                "        metadata:",
+                "          labels:",
+                *workload_labels(namespace, index, 12),
+                "        spec:",
+                "          restartPolicy: Never",
+                "          containers:",
+                "            - name: app",
+                "              image: registry.k8s.io/pause:3.9",
+            ]
+        )
+
+    raise ValueError(f"unsupported workload kind: {kind}")
 
 
 def write_batches(output_dir: Path, namespaces: list[str], workloads: int, batch_size: int) -> int:
@@ -164,7 +240,7 @@ def write_batches(output_dir: Path, namespaces: list[str], workloads: int, batch
         parts: list[str] = []
         for index in range(start, end + 1):
             namespace = namespaces[(index - 1) % len(namespaces)]
-            parts.append(render_deployment(namespace, index))
+            parts.append(render_workload(namespace, index, workload_kind(index)))
         batch_path.write_text("---\n".join(parts), encoding="utf-8")
         batch_files += 1
     return batch_files
@@ -209,6 +285,7 @@ def main() -> int:
         "namespace_count": len(namespaces),
         "batch_size": args.batch_size,
         "batch_files": batch_files,
+        "workload_kind_counts": workload_kind_counts(args.workloads),
         "strategy_name": args.strategy_name,
         "policy_name": args.policy_name,
     }

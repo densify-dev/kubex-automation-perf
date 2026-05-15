@@ -7,9 +7,10 @@ Nightly GitHub Action for exercising `kubex-automation-engine` at scale on KWOK.
 - creates a KWOK cluster with metrics-server enabled
 - scales KWOK nodes to the requested size before controller install
 - installs `kubex-crds`
+- applies a mixed workload set before the controller starts
 - installs `kubex-automation-engine` with the gateway disabled and fetch suppression enabled
 - applies a cluster-wide `StaticPolicy`
-- creates 10k synthetic `Deployment` workloads by default
+- creates 10k synthetic workloads by default across `Deployment`, `StatefulSet`, and `CronJob`
 - scrapes controller metrics during the run
 - uploads raw data and a run summary as artifacts
 

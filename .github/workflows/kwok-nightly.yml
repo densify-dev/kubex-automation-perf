@@ -118,6 +118,21 @@ jobs:
             --from-literal=DENSIFY_BASE_URL=https://example.invalid \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Apply workloads in batches
+        run: |
+          kubectl apply -f "${SCENARIO_DIR}/namespaces.yaml"
+          for file in "${SCENARIO_DIR}"/workloads/*.yaml; do
+            kubectl apply -f "$file"
+          done
+
+      - name: Wait for workload counts
+        run: |
+          bash scripts/wait_for_count.sh \
+            --resource deployments.apps,statefulsets.apps,cronjobs.batch \
+            --selector "app.kubernetes.io/name=kwok-perf" \
+            --expected "${WORKLOADS}" \
+            --timeout 30m
+
       - name: Install automation engine
         run: |
           version_args=()
@@ -156,27 +171,10 @@ jobs:
             > "${METRICS_DIR}/collector.log" 2>&1 &
           echo $! > "${METRICS_DIR}/collector.pid"
 
-      - name: Apply workloads in batches
+      - name: Apply automation resources
         run: |
-          kubectl apply -f "${SCENARIO_DIR}/namespaces.yaml"
           kubectl apply -f "${SCENARIO_DIR}/strategy.yaml"
           kubectl apply -f "${SCENARIO_DIR}/policy.yaml"
-          for file in "${SCENARIO_DIR}"/workloads/*.yaml; do
-            kubectl apply -f "$file"
-          done
-
-      - name: Wait for workload counts
-        run: |
-          bash scripts/wait_for_count.sh \
-            --resource deployments.apps \
-            --selector "app.kubernetes.io/name=kwok-perf" \
-            --expected "${WORKLOADS}" \
-            --timeout 30m
-          bash scripts/wait_for_count.sh \
-            --resource pods \
-            --selector "app.kubernetes.io/name=kwok-perf" \
-            --expected "${WORKLOADS}" \
-            --timeout 30m
 
       - name: Soak
         run: |

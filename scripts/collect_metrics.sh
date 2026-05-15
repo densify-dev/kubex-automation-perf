@@ -65,7 +65,7 @@ while [[ ! -f "${stop_file}" ]]; do
   curl -fsS "http://127.0.0.1:${port_forward_port}/metrics" >"${output_dir}/metrics/metrics-${ts}.prom" || true
   kubectl top pod -n "${namespace}" -l control-plane=controller-manager >"${output_dir}/top/top-pod-${ts}.txt" 2>&1 || true
   kubectl top node >"${output_dir}/top/top-node-${ts}.txt" 2>&1 || true
-  kubectl get deploy -A -l app.kubernetes.io/name=kwok-perf >"${output_dir}/snapshots/deployments-${ts}.txt" 2>&1 || true
+  kubectl get deploy,statefulsets,cronjobs -A -l app.kubernetes.io/name=kwok-perf >"${output_dir}/snapshots/workloads-${ts}.txt" 2>&1 || true
   kubectl get pod -A -l app.kubernetes.io/name=kwok-perf >"${output_dir}/snapshots/pods-${ts}.txt" 2>&1 || true
   kubectl get globalconfiguration global-config -o yaml >"${output_dir}/snapshots/globalconfiguration-${ts}.yaml" 2>&1 || true
   sleep "${interval}"

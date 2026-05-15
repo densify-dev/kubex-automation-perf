@@ -140,16 +140,19 @@ def main() -> int:
 
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
+    kind_counts = metadata.get("workload_kind_counts", {})
+
     md_lines = [
         "# KWOK Nightly Summary",
         "",
         f"- workloads: {metadata['workloads']}",
+        f"- workload mix: deployments={kind_counts.get('Deployment', 0)}, statefulsets={kind_counts.get('StatefulSet', 0)}, cronjobs={kind_counts.get('CronJob', 0)}",
         f"- namespaces: {metadata['namespace_count']}",
         f"- batches: {metadata['batch_files']}",
         f"- metrics snapshots: {len(metrics_files)}",
         f"- controller max CPU: {round(top_cpu, 2)} mcores",
         f"- controller max memory: {round(top_memory / (1024 * 1024), 2)} MiB",
-        f"- workload deployments observed: {counts.get('deployments', 0)}",
+        f"- workload objects observed: {counts.get('workloads', 0)}",
         f"- workload pods observed: {counts.get('pods', 0)}",
         "",
         "## Key metrics",
