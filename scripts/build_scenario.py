@@ -52,7 +52,7 @@ def render_install_values(cluster_name: str) -> str:
             "    cpu: 400m",
             "    memory: 4Gi",
             "  limits:",
-            "    cpu: 1",
+            "    cpu: \"1\"",
             "    memory: 6Gi",
         ]
     )
