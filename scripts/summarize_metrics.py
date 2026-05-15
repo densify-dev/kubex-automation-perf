@@ -146,7 +146,7 @@ def main() -> int:
         "# KWOK Nightly Summary",
         "",
         f"- workloads: {metadata['workloads']}",
-        f"- workload mix: deployments={kind_counts.get('Deployment', 0)}, statefulsets={kind_counts.get('StatefulSet', 0)}, cronjobs={kind_counts.get('CronJob', 0)}",
+        f"- workload mix: deployments={kind_counts.get('Deployment', 0)}, statefulsets={kind_counts.get('StatefulSet', 0)}, cronjobs={kind_counts.get('CronJob', 0)}, daemonsets={kind_counts.get('DaemonSet', 0)}",
         f"- namespaces: {metadata['namespace_count']}",
         f"- batches: {metadata['batch_files']}",
         f"- metrics snapshots: {len(metrics_files)}",

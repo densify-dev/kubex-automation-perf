@@ -103,6 +103,7 @@ def render_policy(name: str, strategy_name: str, namespaces: list[str]) -> str:
         "      - Deployment",
         "      - StatefulSet",
         "      - CronJob",
+        "      - DaemonSet",
         "    namespaceSelector:",
         "      operator: In",
         "      values:",
@@ -128,12 +129,14 @@ def render_policy(name: str, strategy_name: str, namespaces: list[str]) -> str:
 
 
 def workload_kind(index: int) -> str:
+    if index % 200 == 0:
+        return "DaemonSet"
     kinds = ["Deployment", "StatefulSet", "CronJob"]
     return kinds[(index - 1) % len(kinds)]
 
 
 def workload_kind_counts(total: int) -> dict[str, int]:
-    counts = {"Deployment": 0, "StatefulSet": 0, "CronJob": 0}
+    counts = {"Deployment": 0, "StatefulSet": 0, "CronJob": 0, "DaemonSet": 0}
     for index in range(1, total + 1):
         counts[workload_kind(index)] += 1
     return counts
@@ -256,6 +259,33 @@ def render_workload(namespace: str, index: int, kind: str) -> str:
             ]
         )
 
+    if kind == "DaemonSet":
+        return yaml_block(
+            [
+                "apiVersion: apps/v1",
+                "kind: DaemonSet",
+                "metadata:",
+                f"  name: {workload_name}",
+                f"  namespace: {namespace}",
+                "  labels:",
+                *workload_labels(namespace, index, 4),
+                "spec:",
+                "  selector:",
+                "    matchLabels:",
+                "      app.kubernetes.io/name: kwok-perf",
+                f"      perf.kubex.ai/workload-index: \"{index}\"",
+                "  template:",
+                "    metadata:",
+                "      labels:",
+                *workload_labels(namespace, index, 8),
+                "    spec:",
+                "      containers:",
+                "        - name: app",
+                "          image: registry.k8s.io/pause:3.9",
+                *workload_scheduling(6),
+            ]
+        )
+
     raise ValueError(f"unsupported workload kind: {kind}")
 
 
@@ -278,7 +308,7 @@ def write_batches(output_dir: Path, namespaces: list[str], workloads: int, batch
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", required=True)
-    parser.add_argument("--workloads", type=int, default=10000)
+    parser.add_argument("--workloads", type=int, default=50000)
     parser.add_argument("--nodes", type=int, default=150)
     parser.add_argument("--batch-size", type=int, default=250)
     parser.add_argument("--cluster-name", default="kwok-nightly")
