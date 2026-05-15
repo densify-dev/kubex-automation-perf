@@ -156,6 +156,13 @@ jobs:
             --set-string kubexCredentials.epassword="${KUBEX_EPASSWORD}" \
             -f "${SCENARIO_DIR}/install-values.yaml"
 
+      - name: Run controller with host networking
+        run: |
+          kubectl -n "${RELEASE_NAMESPACE}" patch deployment "${RELEASE_NAME}" --type=json -p='[
+            {"op":"add","path":"/spec/template/spec/hostNetwork","value":true},
+            {"op":"add","path":"/spec/template/spec/dnsPolicy","value":"ClusterFirstWithHostNet"}
+          ]'
+
       - name: Wait for controller health
         run: |
           python3 scripts/kwok_orchestrate.py wait-controller-health \
