@@ -37,6 +37,8 @@ jobs:
       NODES: ${{ github.event_name == 'workflow_dispatch' && inputs.nodes || '150' }}
       CHART_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.chart_version || 'latest' }}
       CLUSTER_NAME: kwok-nightly
+      KUBEX_CLUSTER_NAME: ${{ secrets.KUBEX_CLUSTER_NAME }}
+      KUBEX_URL_HOST: ${{ secrets.KUBEX_URL_HOST }}
       KUBEX_USERNAME: ${{ secrets.KUBEX_USERNAME }}
       KUBEX_EPASSWORD: ${{ secrets.KUBEX_EPASSWORD }}
       RELEASE_NAME: kubex-automation-engine
@@ -99,6 +101,8 @@ jobs:
             --workloads "${WORKLOADS}" \
             --nodes "${NODES}" \
             --cluster-name "${CLUSTER_NAME}" \
+            --kubex-host "${KUBEX_URL_HOST}" \
+            --kubex-cluster-name "${KUBEX_CLUSTER_NAME}" \
             --release-name "${RELEASE_NAME}" \
             --release-namespace "${RELEASE_NAMESPACE}"
 
@@ -109,15 +113,6 @@ jobs:
           helm upgrade --install kubex-crds kubex/kubex-crds \
             --namespace "${RELEASE_NAMESPACE}" \
             --create-namespace
-
-      - name: Create gateway secret placeholder
-        run: |
-          kubectl -n "${RELEASE_NAMESPACE}" create secret generic kubex-gateway-config \
-            --from-literal=username=unused \
-            --from-literal=epassword=unused \
-            --from-literal=url=https://example.invalid \
-            --from-literal=DENSIFY_BASE_URL=https://example.invalid \
-            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply workloads in batches
         run: |

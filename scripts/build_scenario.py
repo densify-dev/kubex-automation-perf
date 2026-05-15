@@ -16,7 +16,7 @@ def yaml_block(lines: list[str]) -> str:
 def render_install_values(kubex_host: str, kubex_cluster_name: str) -> str:
     return textwrap.dedent(
         f"""\
-        createSecrets: false
+        createSecrets: true
         gateway:
           enabled: false
           configSecretName: kubex-gateway-config
