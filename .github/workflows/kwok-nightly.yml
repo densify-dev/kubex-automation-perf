@@ -97,7 +97,8 @@ jobs:
 
       - name: Uncordon kind control-plane
         run: |
-          kubectl get nodes -o name | xargs -r kubectl uncordon
+          kubectl get nodes -o wide
+          kubectl get nodes -o jsonpath='{range .items[?(@.metadata.labels.type!="kwok")]}{.metadata.name}{"\n"}{end}' | xargs -r kubectl uncordon
 
       - name: Probe deployment controller
         run: |

@@ -125,6 +125,38 @@ def controller_pods(namespace: str) -> str:
     return result.stdout.strip() if result.returncode == 0 else (result.stderr.strip() or result.stdout.strip() or "no controller pods")
 
 
+def controller_pod_node(namespace: str) -> str | None:
+    result = kubectl([
+        "get",
+        "pod",
+        "-n",
+        namespace,
+        "-l",
+        "control-plane=controller-manager",
+        "-o",
+        "json",
+    ])
+    if result.returncode != 0:
+        return None
+    payload = json.loads(result.stdout)
+    items = payload.get("items", [])
+    if not isinstance(items, list) or not items:
+        return None
+    pod = items[0]
+    if not isinstance(pod, dict):
+        return None
+    return pod.get("spec", {}).get("nodeName")
+
+
+def node_labels(node_name: str) -> dict[str, str] | None:
+    result = kubectl(["get", "node", node_name, "-o", "json"])
+    if result.returncode != 0:
+        return None
+    payload = json.loads(result.stdout)
+    labels = payload.get("metadata", {}).get("labels", {})
+    return labels if isinstance(labels, dict) else None
+
+
 def controller_replicasets(namespace: str) -> str:
     result = kubectl(["get", "rs", "-n", namespace, "-o", "wide"])
     return result.stdout.strip() if result.returncode == 0 else (result.stderr.strip() or result.stdout.strip() or "no controller replicasets")
@@ -181,6 +213,9 @@ def wait_for_controller_health(namespace: str, release: str, timeout: int, inter
         dep_msg, dep = deployment_status(namespace, release)
         gc_msg, gc = globalconfiguration_status()
         pods = controller_pods(namespace)
+        pod_node = controller_pod_node(namespace)
+        pod_node_labels = node_labels(pod_node) if pod_node else None
+        on_control_plane = bool(pod_node_labels and ("node-role.kubernetes.io/control-plane" in pod_node_labels or "node-role.kubernetes.io/master" in pod_node_labels))
 
         print_block(
             f"controller health poll #{attempt}",
@@ -192,6 +227,8 @@ def wait_for_controller_health(namespace: str, release: str, timeout: int, inter
                     gc or gc_msg,
                     "controller pods:",
                     pods,
+                    f"controller pod node: {pod_node or 'unknown'}",
+                    f"controller pod node labels: {json.dumps(pod_node_labels, sort_keys=True) if pod_node_labels else 'unavailable'}",
                     "controller replicasets:",
                     controller_replicasets(namespace),
                     "recent events:",
@@ -206,7 +243,7 @@ def wait_for_controller_health(namespace: str, release: str, timeout: int, inter
 
         dep_ready = bool(dep and dep.get("available", 0) and dep.get("desired", 0))
         gc_ready = bool(gc and "PodAdmissionWebhookHealthy=True" in gc)
-        if dep_ready and gc_ready:
+        if dep_ready and gc_ready and on_control_plane:
             print(f"[{now_utc()}] controller health is ready", flush=True)
             return 0
 
