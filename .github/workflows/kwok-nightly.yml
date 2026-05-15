@@ -84,7 +84,6 @@ jobs:
             -c metrics-usage.yaml
           kwokctl get kubeconfig --name "${CLUSTER_NAME}" > kwok.kubeconfig
           echo "KUBECONFIG=${PWD}/kwok.kubeconfig" >> "$GITHUB_ENV"
-          kubectl --kubeconfig kwok.kubeconfig wait --for=condition=Ready node --all --timeout=10m
 
       - name: Ramp KWOK nodes before controller install
         run: |
