@@ -143,6 +143,35 @@ def recent_events(namespace: str) -> str:
     return "\n".join(lines[-25:]) if lines else "events empty"
 
 
+def cluster_nodes() -> str:
+    result = kubectl(["get", "nodes", "-o", "wide"])
+    return result.stdout.strip() if result.returncode == 0 else (result.stderr.strip() or result.stdout.strip() or "nodes unavailable")
+
+
+def cluster_resources() -> str:
+    result = kubectl(["get", "all", "-A", "-o", "wide"])
+    return result.stdout.strip() if result.returncode == 0 else (result.stderr.strip() or result.stdout.strip() or "cluster resources unavailable")
+
+
+def cluster_events() -> str:
+    result = kubectl(["get", "events", "-A", "--sort-by=.lastTimestamp"])
+    if result.returncode != 0:
+        return result.stderr.strip() or result.stdout.strip() or "cluster events unavailable"
+    lines = [line for line in result.stdout.splitlines() if line.strip()]
+    return "\n".join(lines[-40:]) if lines else "cluster events empty"
+
+
+def cluster_metrics() -> str:
+    metrics = []
+    nodes = kubectl(["top", "nodes"])
+    metrics.append("node metrics:")
+    metrics.append(nodes.stdout.strip() if nodes.returncode == 0 else (nodes.stderr.strip() or nodes.stdout.strip() or "node metrics unavailable"))
+    pods = kubectl(["top", "pods", "-A"])
+    metrics.append("pod metrics:")
+    metrics.append(pods.stdout.strip() if pods.returncode == 0 else (pods.stderr.strip() or pods.stdout.strip() or "pod metrics unavailable"))
+    return "\n".join(metrics)
+
+
 def wait_for_controller_health(namespace: str, release: str, timeout: int, interval: int) -> int:
     deadline = datetime.now(timezone.utc) + timedelta(seconds=timeout)
     attempt = 0
@@ -186,6 +215,10 @@ def wait_for_controller_health(namespace: str, release: str, timeout: int, inter
     print(f"[{now_utc()}] timed out waiting for controller health", file=sys.stderr, flush=True)
     print_block("final controller pods", controller_pods(namespace))
     print_block("final controller replicasets", controller_replicasets(namespace))
+    print_block("cluster nodes", cluster_nodes())
+    print_block("cluster metrics", cluster_metrics())
+    print_block("cluster resources", cluster_resources())
+    print_block("cluster events", cluster_events())
     print_block("final controller logs", controller_logs(namespace))
     return 1
 
