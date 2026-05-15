@@ -87,7 +87,7 @@ jobs:
 
       - name: Ramp KWOK nodes before controller install
         run: |
-          kwokctl scale node --replicas "${NODES}"
+          kwokctl scale node --name "${CLUSTER_NAME}" --replicas "${NODES}"
           kubectl --kubeconfig kwok.kubeconfig wait --for=condition=Ready node --all --timeout=10m
 
       - name: Generate scenario manifests
