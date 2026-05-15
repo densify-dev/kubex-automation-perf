@@ -82,13 +82,14 @@ jobs:
             --name "${CLUSTER_NAME}" \
             --enable-metrics-server \
             -c metrics-usage.yaml
-          kubectl config use-context "${CLUSTER_NAME}-kwok"
-          kubectl wait --for=condition=Ready node --all --timeout=10m
+          kwokctl get kubeconfig --name "${CLUSTER_NAME}" > kwok.kubeconfig
+          echo "KUBECONFIG=${PWD}/kwok.kubeconfig" >> "$GITHUB_ENV"
+          kubectl --kubeconfig kwok.kubeconfig wait --for=condition=Ready node --all --timeout=10m
 
       - name: Ramp KWOK nodes before controller install
         run: |
           kwokctl scale node --replicas "${NODES}"
-          kubectl wait --for=condition=Ready node --all --timeout=10m
+          kubectl --kubeconfig kwok.kubeconfig wait --for=condition=Ready node --all --timeout=10m
 
       - name: Generate scenario manifests
         run: |
