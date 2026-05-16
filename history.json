@@ -1,5 +1,24 @@
 [
   {
+    "controller_max_cpu_mcores": 335.0,
+    "controller_max_memory_mib": 1034.0,
+    "deployments_observed": 16584,
+    "generated_at": "2026-05-16T03:29:51.983265+00:00",
+    "metrics": {},
+    "metrics_snapshots": 21,
+    "nodes": 150,
+    "pods_observed": 5517,
+    "ref_name": "main",
+    "run_attempt": 1,
+    "run_id": 25951038253,
+    "run_number": 30,
+    "run_url": "https://github.com/densify-dev/kubex-automation-perf/actions/runs/25951038253",
+    "sha": "2650a5ad77ee8c648a5461c4ce5a775b308f99a9",
+    "status": "success",
+    "top_snapshots": 21,
+    "workloads": 50000
+  },
+  {
     "controller_max_cpu_mcores": 332.0,
     "controller_max_memory_mib": 928.0,
     "deployments_observed": 16584,
