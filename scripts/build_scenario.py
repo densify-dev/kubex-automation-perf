@@ -242,10 +242,11 @@ def render_workload(namespace: str, index: int, kind: str) -> str:
                 "  labels:",
                 *workload_labels(namespace, index, 4),
                 "spec:",
-                "  schedule: \"*/5 * * * *\"",
+                "  schedule: \"0 * * * *\"",
                 "  concurrencyPolicy: Allow",
                 "  jobTemplate:",
                 "    spec:",
+                "      backoffLimit: 0",
                 "      template:",
                 "        metadata:",
                 "          labels:",
@@ -255,7 +256,11 @@ def render_workload(namespace: str, index: int, kind: str) -> str:
                 *workload_scheduling(10),
                 "          containers:",
                 "            - name: app",
-                "              image: registry.k8s.io/pause:3.9",
+                "              image: registry.k8s.io/busybox:1.36",
+                "              command:",
+                "                - sh",
+                "                - -c",
+                "                - sleep 3600",
             ]
         )
 
