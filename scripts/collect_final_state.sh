@@ -47,6 +47,7 @@ workloads=$(kubectl get deploy,statefulsets,cronjobs -A -l app.kubernetes.io/nam
 deployments=$(kubectl get deploy -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
 statefulsets=$(kubectl get statefulsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
 cronjobs=$(kubectl get cronjobs -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
+daemonsets=$(kubectl get daemonsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
 pods=$(kubectl get pod -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
 replicasets=$(kubectl get rs -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
 controller_pods=$(kubectl get pod -n "${namespace}" -l control-plane=controller-manager -o name 2>/dev/null | wc -l | tr -d ' ')
@@ -56,6 +57,7 @@ workloads=${workloads}
 deployments=${deployments}
 statefulsets=${statefulsets}
 cronjobs=${cronjobs}
+daemonsets=${daemonsets}
 pods=${pods}
 replicasets=${replicasets}
 controller_pods=${controller_pods}

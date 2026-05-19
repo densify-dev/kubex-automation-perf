@@ -129,7 +129,7 @@ def render_policy(name: str, strategy_name: str, namespaces: list[str]) -> str:
 
 
 def workload_kind(index: int) -> str:
-    if index % 200 == 0:
+    if index % 2500 == 0:
         return "DaemonSet"
     kinds = ["Deployment", "StatefulSet", "CronJob"]
     return kinds[(index - 1) % len(kinds)]
@@ -243,7 +243,7 @@ def render_workload(namespace: str, index: int, kind: str) -> str:
                 *workload_labels(namespace, index, 4),
                 "spec:",
                 "  schedule: \"*/5 * * * *\"",
-                "  suspend: true",
+                "  concurrencyPolicy: Allow",
                 "  jobTemplate:",
                 "    spec:",
                 "      template:",
@@ -309,7 +309,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--workloads", type=int, default=50000)
-    parser.add_argument("--nodes", type=int, default=450)
+    parser.add_argument("--nodes", type=int, default=500)
     parser.add_argument("--batch-size", type=int, default=250)
     parser.add_argument("--cluster-name", default="kwok-nightly")
     parser.add_argument("--kubex-host", default="automationtest.kubex.ai")

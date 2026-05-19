@@ -56,6 +56,13 @@ def read_counts(counts_path: Path) -> dict[str, int]:
     return counts
 
 
+def workload_total(counts: dict[str, int]) -> int:
+    return sum(
+        counts.get(key, 0)
+        for key in ["deployments", "statefulsets", "cronjobs", "daemonsets"]
+    )
+
+
 def parse_top_pod(path: Path) -> dict[str, float] | None:
     lines = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
     if len(lines) < 2:
@@ -141,6 +148,14 @@ def main() -> int:
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     kind_counts = metadata.get("workload_kind_counts", {})
+    daemonset_count = counts.get("daemonsets", 0)
+    deployment_count = counts.get("deployments", 0)
+    statefulset_count = counts.get("statefulsets", 0)
+    cronjob_count = counts.get("cronjobs", 0)
+    pod_bearing_objects = deployment_count + statefulset_count + cronjob_count + daemonset_count
+    daemonset_pod_target = daemonset_count * int(metadata.get("nodes", 0))
+    expected_steady_state_pods = deployment_count + statefulset_count + daemonset_pod_target
+    pod_delta = counts.get("pods", 0) - expected_steady_state_pods
 
     md_lines = [
         "# KWOK Nightly Summary",
@@ -153,8 +168,14 @@ def main() -> int:
         f"- metrics snapshots: {len(metrics_files)}",
         f"- controller max CPU: {round(top_cpu, 2)} mcores",
         f"- controller max memory: {round(top_memory / (1024 * 1024), 2)} MiB",
-        f"- workload objects observed: {counts.get('workloads', 0)}",
+        f"- workload objects observed: {workload_total(counts)}",
+        f"- pod-bearing workload objects observed: {pod_bearing_objects}",
+        f"- expected live pods from daemonsets: {daemonset_pod_target}",
+        f"- expected steady-state live pods: {expected_steady_state_pods}",
         f"- workload pods observed: {counts.get('pods', 0)}",
+        f"- live pod delta vs target: {pod_delta}",
+        "",
+        "CronJobs are active, but they are scheduled workloads rather than a steady-state pod source.",
         "",
         "## Key metrics",
     ]
