@@ -15,7 +15,7 @@ on:
       nodes:
         description: "Number of KWOK nodes"
         required: true
-        default: "150"
+        default: "450"
       chart_version:
         description: "Helm chart version to test"
         required: true
@@ -34,7 +34,7 @@ jobs:
     timeout-minutes: 180
     env:
       WORKLOADS: ${{ github.event_name == 'workflow_dispatch' && inputs.workloads || '50000' }}
-      NODES: ${{ github.event_name == 'workflow_dispatch' && inputs.nodes || '150' }}
+      NODES: ${{ github.event_name == 'workflow_dispatch' && inputs.nodes || '450' }}
       CHART_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.chart_version || 'latest' }}
       CLUSTER_NAME: kwok-nightly
       KUBEX_CLUSTER_NAME: ${{ secrets.KUBEX_CLUSTER_NAME }}

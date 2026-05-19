@@ -309,7 +309,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--workloads", type=int, default=50000)
-    parser.add_argument("--nodes", type=int, default=150)
+    parser.add_argument("--nodes", type=int, default=450)
     parser.add_argument("--batch-size", type=int, default=250)
     parser.add_argument("--cluster-name", default="kwok-nightly")
     parser.add_argument("--kubex-host", default="automationtest.kubex.ai")
