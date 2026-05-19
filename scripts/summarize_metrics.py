@@ -83,6 +83,26 @@ def parse_top_pod(path: Path) -> dict[str, float] | None:
     return best
 
 
+def parse_live_count_snapshot(path: Path) -> dict[str, object] | None:
+    counts: dict[str, object] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if key == "timestamp":
+            counts[key] = value
+            continue
+        try:
+            counts[key] = int(value)
+        except ValueError:
+            continue
+    if "timestamp" not in counts or "pods" not in counts:
+        return None
+    return counts
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--metadata", required=True)
@@ -99,6 +119,7 @@ def main() -> int:
 
     metrics_files = sorted((metrics_dir / "metrics").glob("*.prom"))
     top_files = sorted((metrics_dir / "top").glob("top-pod-*.txt"))
+    live_count_files = sorted((metrics_dir / "snapshots").glob("live-counts-*.txt"))
 
     latest_metrics = metrics_files[-1].read_text(encoding="utf-8") if metrics_files else ""
     gauge_candidates = defaultdict(float)
@@ -125,6 +146,11 @@ def main() -> int:
         top_memory = max(top_memory, sample["memory_bytes"])
 
     counts = read_counts(final_dir / "counts.txt") if (final_dir / "counts.txt").exists() else {}
+    live_counts: list[dict[str, int]] = []
+    for path in live_count_files:
+        sample = parse_live_count_snapshot(path)
+        if sample:
+            live_counts.append(sample)
 
     summary = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -132,8 +158,10 @@ def main() -> int:
         "samples": {
             "metrics_snapshots": len(metrics_files),
             "top_snapshots": len(top_files),
+            "live_count_snapshots": len(live_counts),
         },
         "counts": counts,
+        "live_counts": live_counts,
         "controller": {
             "max_cpu_mcores": round(top_cpu, 2),
             "max_memory_mib": round(top_memory / (1024 * 1024), 2),
@@ -166,6 +194,7 @@ def main() -> int:
         f"- namespaces: {metadata['namespace_count']}",
         f"- batches: {metadata['batch_files']}",
         f"- metrics snapshots: {len(metrics_files)}",
+        f"- live count snapshots: {len(live_counts)}",
         f"- controller max CPU: {round(top_cpu, 2)} mcores",
         f"- controller max memory: {round(top_memory / (1024 * 1024), 2)} MiB",
         f"- workload objects observed: {workload_total(counts)}",

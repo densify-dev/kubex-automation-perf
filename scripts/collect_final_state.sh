@@ -43,7 +43,7 @@ kubectl get clusterstaticpolicies >"${output_dir}/clusterstaticpolicies.txt" 2>&
 kubectl get events -A --sort-by=.lastTimestamp >"${output_dir}/events.txt" 2>&1 || true
 kubectl logs -n "${namespace}" -l control-plane=controller-manager -c manager --since=60m >"${output_dir}/controller.log" 2>&1 || true
 
-workloads=$(kubectl get deploy,statefulsets,cronjobs -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
+workloads=$(kubectl get deploy,statefulsets,cronjobs,daemonsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
 deployments=$(kubectl get deploy -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
 statefulsets=$(kubectl get statefulsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
 cronjobs=$(kubectl get cronjobs -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')

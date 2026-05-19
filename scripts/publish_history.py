@@ -41,6 +41,10 @@ def render_index() -> str:
       <h2>Controller Memory (MiB)</h2>
       <canvas id="memory-chart" width="900" height="240"></canvas>
     </div>
+    <div class="card">
+      <h2>Live Pods (latest run)</h2>
+      <canvas id="pods-chart" width="900" height="240"></canvas>
+    </div>
   </div>
   <table id="runs" hidden>
     <thead>
@@ -117,8 +121,10 @@ def render_index() -> str:
         const tbody = document.querySelector('#runs tbody');
         const cpuChart = document.querySelector('#cpu-chart');
         const memoryChart = document.querySelector('#memory-chart');
+        const podsChart = document.querySelector('#pods-chart');
         const cpuPoints = [];
         const memoryPoints = [];
+        const livePodPoints = [];
         const orderedRuns = [...runs].reverse();
         const latest = runs[0];
         const latestStatus = document.querySelector('#latest-status');
@@ -141,8 +147,14 @@ def render_index() -> str:
           cpuPoints.push({ label: run.run_number, value: Number(run.controller_max_cpu_mcores || 0) });
           memoryPoints.push({ label: run.run_number, value: Number(run.controller_max_memory_mib || 0) });
         }
+        if (latest && Array.isArray(latest.live_counts)) {
+          for (const sample of latest.live_counts) {
+            livePodPoints.push({ label: sample.timestamp, value: Number(sample.pods || 0) });
+          }
+        }
         drawLineChart(cpuChart, cpuPoints, '#2563eb');
         drawLineChart(memoryChart, memoryPoints, '#16a34a');
+        drawLineChart(podsChart, livePodPoints, '#7c3aed');
         document.querySelector('#charts').hidden = false;
         document.querySelector('#status').hidden = true;
         document.querySelector('#runs').hidden = false;
@@ -192,6 +204,7 @@ def main() -> int:
         "deployments_observed": summary.get("counts", {}).get("deployments", 0),
         "metrics_snapshots": summary.get("samples", {}).get("metrics_snapshots", 0),
         "top_snapshots": summary.get("samples", {}).get("top_snapshots", 0),
+        "live_counts": summary.get("live_counts", []),
         "metrics": summary.get("metrics", {}),
     }
 

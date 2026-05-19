@@ -7,6 +7,7 @@ port_forward_port="18080"
 output_dir=""
 stop_file=""
 interval="15"
+count_interval="60"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -32,6 +33,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --interval)
       interval="$2"
+      shift 2
+      ;;
+    --count-interval)
+      count_interval="$2"
       shift 2
       ;;
     *)
@@ -60,13 +65,32 @@ cleanup() {
 }
 trap cleanup EXIT
 
+write_live_counts() {
+  ts="$1"
+  {
+    echo "timestamp=${ts}"
+    kubectl get deploy -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'deployments=%s\n'
+    kubectl get statefulsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'statefulsets=%s\n'
+    kubectl get cronjobs -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'cronjobs=%s\n'
+    kubectl get daemonsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'daemonsets=%s\n'
+    kubectl get pod -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'pods=%s\n'
+  } >"${output_dir}/snapshots/live-counts-${ts}.txt"
+}
+
+next_count_at=$(date +%s)
+
 while [[ ! -f "${stop_file}" ]]; do
   ts=$(date -u +%Y%m%dT%H%M%SZ)
   curl -fsS "http://127.0.0.1:${port_forward_port}/metrics" >"${output_dir}/metrics/metrics-${ts}.prom" || true
   kubectl top pod -n "${namespace}" -l control-plane=controller-manager >"${output_dir}/top/top-pod-${ts}.txt" 2>&1 || true
   kubectl top node >"${output_dir}/top/top-node-${ts}.txt" 2>&1 || true
-  kubectl get deploy,statefulsets,cronjobs -A -l app.kubernetes.io/name=kwok-perf >"${output_dir}/snapshots/workloads-${ts}.txt" 2>&1 || true
+  kubectl get deploy,statefulsets,cronjobs,daemonsets -A -l app.kubernetes.io/name=kwok-perf >"${output_dir}/snapshots/workloads-${ts}.txt" 2>&1 || true
   kubectl get pod -A -l app.kubernetes.io/name=kwok-perf >"${output_dir}/snapshots/pods-${ts}.txt" 2>&1 || true
   kubectl get globalconfiguration global-config -o yaml >"${output_dir}/snapshots/globalconfiguration-${ts}.yaml" 2>&1 || true
+  now=$(date +%s)
+  if [[ ${now} -ge ${next_count_at} ]]; then
+    write_live_counts "${ts}"
+    next_count_at=$((now + count_interval))
+  fi
   sleep "${interval}"
 done
