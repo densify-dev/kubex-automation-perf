@@ -1,5 +1,73 @@
 [
   {
+    "controller_max_cpu_mcores": 203.0,
+    "controller_max_memory_mib": 1295.0,
+    "deployments_observed": 16660,
+    "generated_at": "2026-05-19T19:06:51.445233+00:00",
+    "live_counts": [
+      {
+        "cronjobs": 16660,
+        "daemonsets": 20,
+        "deployments": 16660,
+        "pods": 12357,
+        "statefulsets": 16660,
+        "timestamp": "20260519T184306Z"
+      },
+      {
+        "cronjobs": 16660,
+        "daemonsets": 20,
+        "deployments": 16660,
+        "pods": 12923,
+        "statefulsets": 16660,
+        "timestamp": "20260519T184543Z"
+      },
+      {
+        "cronjobs": 16660,
+        "daemonsets": 20,
+        "deployments": 16660,
+        "pods": 13495,
+        "statefulsets": 16660,
+        "timestamp": "20260519T184835Z"
+      },
+      {
+        "cronjobs": 16660,
+        "daemonsets": 20,
+        "deployments": 16660,
+        "pods": 14133,
+        "statefulsets": 16660,
+        "timestamp": "20260519T185139Z"
+      },
+      {
+        "cronjobs": 16660,
+        "daemonsets": 20,
+        "deployments": 16660,
+        "pods": 14744,
+        "statefulsets": 16660,
+        "timestamp": "20260519T185526Z"
+      }
+    ],
+    "metrics": {
+      "controller_runtime_reconcile_errors_total": 0.0,
+      "controller_runtime_reconcile_total": 66919.0,
+      "go_goroutines": 473.0,
+      "process_cpu_seconds_total": 264.68,
+      "process_resident_memory_bytes": 1128898560.0,
+      "workqueue_depth": 16741.0
+    },
+    "metrics_snapshots": 5,
+    "nodes": 500,
+    "pods_observed": 16121,
+    "ref_name": "main",
+    "run_attempt": 1,
+    "run_id": 26115232489,
+    "run_number": 37,
+    "run_url": "https://github.com/densify-dev/kubex-automation-perf/actions/runs/26115232489",
+    "sha": "7f9d4919c5afb9837b9f310f84691f80536a219c",
+    "status": "success",
+    "top_snapshots": 5,
+    "workloads": 50000
+  },
+  {
     "controller_max_cpu_mcores": 216.0,
     "controller_max_memory_mib": 1240.0,
     "deployments_observed": 16660,
