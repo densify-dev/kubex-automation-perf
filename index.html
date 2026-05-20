@@ -39,6 +39,7 @@
     <thead>
       <tr>
         <th>Run</th>
+        <th>Mode</th>
         <th>When</th>
         <th>Status</th>
         <th>Workloads</th>
@@ -117,12 +118,13 @@
         const orderedRuns = [...runs].reverse();
         const latest = runs[0];
         const latestStatus = document.querySelector('#latest-status');
-        latestStatus.textContent = latest ? `${latest.status} (${latest.generated_at})` : 'No runs yet';
+        latestStatus.textContent = latest ? `${latest.status} (${latest.controller_install_order || 'unknown'}, ${latest.generated_at})` : 'No runs yet';
         latestStatus.style.color = latest && latest.status === 'success' ? '#16a34a' : '#dc2626';
         for (const run of runs) {
           const tr = document.createElement('tr');
           tr.innerHTML = `
             <td><a href="${run.run_url}">#${run.run_number}</a></td>
+            <td>${run.controller_install_order || ''}</td>
             <td>${run.generated_at}</td>
             <td>${run.status}</td>
             <td>${run.workloads}</td>
