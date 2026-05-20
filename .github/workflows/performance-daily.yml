@@ -34,7 +34,6 @@ jobs:
     timeout-minutes: 180
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         controller_install_order:
           - before-workload-ramp
@@ -297,33 +296,39 @@ jobs:
         run: |
           bash -lc '
             set -euo pipefail
-            workdir=$(mktemp -d)
             repo_url="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-            if git ls-remote --exit-code --heads "$repo_url" gh-pages >/dev/null 2>&1; then
-              git clone --depth 1 --branch gh-pages "$repo_url" "$workdir/gh-pages"
-            else
-              mkdir -p "$workdir/gh-pages"
-              git -C "$workdir/gh-pages" init -b gh-pages
-              git -C "$workdir/gh-pages" remote add origin "$repo_url"
-            fi
-            python3 scripts/publish_history.py \
-              --summary-json "${REPORT_DIR}/summary.json" \
-              --pages-dir "$workdir/gh-pages" \
-              --repository "${GITHUB_REPOSITORY}" \
-              --run-id "${GITHUB_RUN_ID}" \
-              --run-number "${GITHUB_RUN_NUMBER}" \
-              --run-attempt "${GITHUB_RUN_ATTEMPT}" \
-              --sha "${GITHUB_SHA}" \
-              --ref-name "${GITHUB_REF_NAME}" \
-              --status "${JOB_STATUS}"
-            git -C "$workdir/gh-pages" config user.name "github-actions[bot]"
-            git -C "$workdir/gh-pages" config user.email "github-actions[bot]@users.noreply.github.com"
-            git -C "$workdir/gh-pages" add history.json index.html latest.json runs
-            if git -C "$workdir/gh-pages" diff --cached --quiet; then
-              exit 0
-            fi
-            git -C "$workdir/gh-pages" commit -m "Update KWOK perf history for ${GITHUB_RUN_ID}"
-            git -C "$workdir/gh-pages" push origin gh-pages
+            for attempt in 1 2 3 4 5; do
+              workdir=$(mktemp -d)
+              if git ls-remote --exit-code --heads "$repo_url" gh-pages >/dev/null 2>&1; then
+                git clone --depth 1 --branch gh-pages "$repo_url" "$workdir/gh-pages"
+              else
+                mkdir -p "$workdir/gh-pages"
+                git -C "$workdir/gh-pages" init -b gh-pages
+                git -C "$workdir/gh-pages" remote add origin "$repo_url"
+              fi
+              python3 scripts/publish_history.py \
+                --summary-json "${REPORT_DIR}/summary.json" \
+                --pages-dir "$workdir/gh-pages" \
+                --repository "${GITHUB_REPOSITORY}" \
+                --run-id "${GITHUB_RUN_ID}" \
+                --run-number "${GITHUB_RUN_NUMBER}" \
+                --run-attempt "${GITHUB_RUN_ATTEMPT}" \
+                --sha "${GITHUB_SHA}" \
+                --ref-name "${GITHUB_REF_NAME}" \
+                --status "${JOB_STATUS}"
+              git -C "$workdir/gh-pages" config user.name "github-actions[bot]"
+              git -C "$workdir/gh-pages" config user.email "github-actions[bot]@users.noreply.github.com"
+              git -C "$workdir/gh-pages" add history.json index.html latest.json runs
+              if git -C "$workdir/gh-pages" diff --cached --quiet; then
+                exit 0
+              fi
+              git -C "$workdir/gh-pages" commit -m "Update KWOK perf history for ${GITHUB_RUN_ID}"
+              if git -C "$workdir/gh-pages" push origin gh-pages; then
+                exit 0
+              fi
+              sleep "$attempt"
+            done
+            exit 1
           '
 
       - name: Upload artifacts
