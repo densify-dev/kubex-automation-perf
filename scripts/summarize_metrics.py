@@ -188,6 +188,7 @@ def main() -> int:
     md_lines = [
         "# KWOK Nightly Summary",
         "",
+        f"- controller install order: {metadata.get('controller_install_order', 'unknown')}",
         f"- workloads: {metadata['workloads']}",
         f"- nodes: {metadata['nodes']}",
         f"- workload mix: deployments={kind_counts.get('Deployment', 0)}, statefulsets={kind_counts.get('StatefulSet', 0)}, cronjobs={kind_counts.get('CronJob', 0)}, daemonsets={kind_counts.get('DaemonSet', 0)}",

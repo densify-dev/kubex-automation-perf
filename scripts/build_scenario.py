@@ -146,7 +146,7 @@ def workload_labels(namespace: str, index: int, indent: int) -> list[str]:
     prefix = " " * indent
     return [
         f"{prefix}app.kubernetes.io/name: kwok-perf",
-        f"{prefix}app.kubernetes.io/part-of: kwok-nightly",
+        f"{prefix}app.kubernetes.io/part-of: performance-daily",
         f"{prefix}perf.kubex.ai/workload-index: \"{index}\"",
         f"{prefix}perf.kubex.ai/namespace: {namespace}",
     ]
@@ -316,7 +316,7 @@ def main() -> int:
     parser.add_argument("--workloads", type=int, default=50000)
     parser.add_argument("--nodes", type=int, default=500)
     parser.add_argument("--batch-size", type=int, default=250)
-    parser.add_argument("--cluster-name", default="kwok-nightly")
+    parser.add_argument("--cluster-name", default="performance-daily")
     parser.add_argument("--kubex-host", default="automationtest.kubex.ai")
     parser.add_argument("--kubex-cluster-name", default="automation-perf-test")
     parser.add_argument("--release-name", default="kubex-automation-engine")
@@ -324,6 +324,7 @@ def main() -> int:
     parser.add_argument("--namespace-prefix", default="perf")
     parser.add_argument("--strategy-name", default="perf-static-strategy")
     parser.add_argument("--policy-name", default="perf-static-policy")
+    parser.add_argument("--controller-install-order", default="before-workload-ramp")
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -356,6 +357,7 @@ def main() -> int:
         "workload_kind_counts": workload_kind_counts(args.workloads),
         "strategy_name": args.strategy_name,
         "policy_name": args.policy_name,
+        "controller_install_order": args.controller_install_order,
     }
     (output_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     return 0

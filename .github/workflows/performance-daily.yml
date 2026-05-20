@@ -1,4 +1,4 @@
-name: kwok-nightly
+name: performance-daily
 
 on:
   push:
@@ -22,7 +22,7 @@ on:
         default: "latest"
 
 concurrency:
-  group: kwok-nightly
+  group: performance-daily
   cancel-in-progress: false
 
 permissions:
@@ -32,11 +32,18 @@ jobs:
   perf:
     runs-on: ubuntu-latest
     timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        controller_install_order:
+          - before-workload-ramp
+          - after-workload-ramp
     env:
       WORKLOADS: ${{ github.event_name == 'workflow_dispatch' && inputs.workloads || '50000' }}
       NODES: ${{ github.event_name == 'workflow_dispatch' && inputs.nodes || '500' }}
       CHART_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.chart_version || 'latest' }}
-      CLUSTER_NAME: kwok-nightly
+      CLUSTER_NAME: performance-daily
       KUBEX_CLUSTER_NAME: ${{ secrets.KUBEX_CLUSTER_NAME }}
       KUBEX_URL_HOST: ${{ secrets.KUBEX_URL_HOST }}
       KUBEX_USERNAME: ${{ secrets.KUBEX_USERNAME }}
@@ -118,6 +125,7 @@ jobs:
             --output-dir "${SCENARIO_DIR}" \
             --workloads "${WORKLOADS}" \
             --nodes "${NODES}" \
+            --controller-install-order "${{ matrix.controller_install_order }}" \
             --cluster-name "${CLUSTER_NAME}" \
             --kubex-host "${KUBEX_URL_HOST}" \
             --kubex-cluster-name "${KUBEX_CLUSTER_NAME}" \
@@ -142,7 +150,16 @@ jobs:
           fi
           kubectl delete deployment kubex-deployment-probe -n kubex --wait=false
 
-      - name: Install automation engine
+      - name: Apply workloads before controller install
+        if: matrix.controller_install_order == 'after-workload-ramp'
+        run: |
+          kubectl apply -f "${SCENARIO_DIR}/namespaces.yaml"
+          for file in "${SCENARIO_DIR}"/workloads/*.yaml; do
+            kubectl apply -f "$file"
+          done
+
+      - name: Install automation engine before workloads
+        if: matrix.controller_install_order == 'before-workload-ramp'
         run: |
           version_args=()
           if [ -n "${CHART_VERSION}" ] && [ "${CHART_VERSION}" != "latest" ]; then
@@ -155,27 +172,53 @@ jobs:
             --set-string kubexCredentials.username="${KUBEX_USERNAME}" \
             --set-string kubexCredentials.epassword="${KUBEX_EPASSWORD}" \
             -f "${SCENARIO_DIR}/install-values.yaml"
-
-      - name: Run controller with host networking
-        run: |
           kubectl -n "${RELEASE_NAMESPACE}" patch deployment "${RELEASE_NAME}" --type=json -p='[
             {"op":"add","path":"/spec/template/spec/hostNetwork","value":true},
             {"op":"add","path":"/spec/template/spec/dnsPolicy","value":"ClusterFirstWithHostNet"}
           ]'
 
-      - name: Wait for controller health
+      - name: Wait for controller health before workloads
+        if: matrix.controller_install_order == 'before-workload-ramp'
         run: |
           python3 scripts/kwok_orchestrate.py wait-controller-health \
             --namespace "${RELEASE_NAMESPACE}" \
             --release "${RELEASE_NAME}" \
             --timeout 3m
 
-      - name: Apply workloads in batches
+      - name: Apply workloads after controller install
+        if: matrix.controller_install_order == 'before-workload-ramp'
         run: |
           kubectl apply -f "${SCENARIO_DIR}/namespaces.yaml"
           for file in "${SCENARIO_DIR}"/workloads/*.yaml; do
             kubectl apply -f "$file"
           done
+
+      - name: Install automation engine after workloads
+        if: matrix.controller_install_order == 'after-workload-ramp'
+        run: |
+          version_args=()
+          if [ -n "${CHART_VERSION}" ] && [ "${CHART_VERSION}" != "latest" ]; then
+            version_args+=(--version "${CHART_VERSION}")
+          fi
+          helm upgrade --install "${RELEASE_NAME}" kubex/kubex-automation-engine \
+            --namespace "${RELEASE_NAMESPACE}" \
+            --create-namespace \
+            "${version_args[@]}" \
+            --set-string kubexCredentials.username="${KUBEX_USERNAME}" \
+            --set-string kubexCredentials.epassword="${KUBEX_EPASSWORD}" \
+            -f "${SCENARIO_DIR}/install-values.yaml"
+          kubectl -n "${RELEASE_NAMESPACE}" patch deployment "${RELEASE_NAME}" --type=json -p='[
+            {"op":"add","path":"/spec/template/spec/hostNetwork","value":true},
+            {"op":"add","path":"/spec/template/spec/dnsPolicy","value":"ClusterFirstWithHostNet"}
+          ]'
+
+      - name: Wait for controller health after workloads
+        if: matrix.controller_install_order == 'after-workload-ramp'
+        run: |
+          python3 scripts/kwok_orchestrate.py wait-controller-health \
+            --namespace "${RELEASE_NAMESPACE}" \
+            --release "${RELEASE_NAME}" \
+            --timeout 3m
 
       - name: Wait for workload counts
         run: |
@@ -287,7 +330,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: kwok-nightly-${{ github.run_id }}
+          name: performance-daily-${{ github.run_id }}-${{ matrix.controller_install_order }}
           path: |
             artifacts/scenario
             artifacts/metrics

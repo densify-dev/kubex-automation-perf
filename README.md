@@ -32,7 +32,12 @@ The workflow also appends the Markdown summary to the GitHub Actions job summary
 
 ## Nightly workflow
 
-Workflow file: `.github/workflows/kwok-nightly.yml`
+Workflow file: `.github/workflows/performance-daily.yml`
+
+The workflow runs twice per execution via a matrix:
+
+- controller installed before workload ramp
+- controller installed after workload ramp
 
 The workflow is manually runnable too, with inputs for:
 

@@ -50,6 +50,7 @@ def render_index() -> str:
     <thead>
       <tr>
         <th>Run</th>
+        <th>Mode</th>
         <th>When</th>
         <th>Status</th>
         <th>Workloads</th>
@@ -128,12 +129,13 @@ def render_index() -> str:
         const orderedRuns = [...runs].reverse();
         const latest = runs[0];
         const latestStatus = document.querySelector('#latest-status');
-        latestStatus.textContent = latest ? `${latest.status} (${latest.generated_at})` : 'No runs yet';
+        latestStatus.textContent = latest ? `${latest.status} (${latest.controller_install_order || 'unknown'}, ${latest.generated_at})` : 'No runs yet';
         latestStatus.style.color = latest && latest.status === 'success' ? '#16a34a' : '#dc2626';
         for (const run of runs) {
           const tr = document.createElement('tr');
           tr.innerHTML = `
             <td><a href="${run.run_url}">#${run.run_number}</a></td>
+            <td>${run.controller_install_order || ''}</td>
             <td>${run.generated_at}</td>
             <td>${run.status}</td>
             <td>${run.workloads}</td>
@@ -189,6 +191,7 @@ def main() -> int:
 
     record = {
         "run_id": int(args.run_id),
+        "run_key": f"{args.run_id}:{summary['scenario'].get('controller_install_order', 'unknown')}",
         "run_number": int(args.run_number),
         "run_attempt": int(args.run_attempt),
         "run_url": f"https://github.com/{args.repository}/actions/runs/{args.run_id}",
@@ -196,6 +199,7 @@ def main() -> int:
         "ref_name": args.ref_name,
         "status": args.status,
         "generated_at": summary["generated_at"],
+        "controller_install_order": summary["scenario"].get("controller_install_order", "unknown"),
         "workloads": summary["scenario"]["workloads"],
         "nodes": summary["scenario"]["nodes"],
         "controller_max_cpu_mcores": summary["controller"]["max_cpu_mcores"],
@@ -208,7 +212,7 @@ def main() -> int:
         "metrics": summary.get("metrics", {}),
     }
 
-    latest_path = runs_dir / f"{args.run_id}.json"
+    latest_path = runs_dir / f"{record['run_key']}.json"
     latest_path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     history_path = pages_dir / "history.json"
@@ -218,22 +222,24 @@ def main() -> int:
         if not isinstance(history, list):
             history = []
 
-    history = [record] + [entry for entry in history if entry.get("run_id") != record["run_id"]]
+    history = [record] + [entry for entry in history if entry.get("run_key", f"{entry.get('run_id')}:{entry.get('controller_install_order', 'unknown')}") != record["run_key"]]
     history = history[:180]
     history_path.write_text(json.dumps(history, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     (pages_dir / "latest.json").write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     csv_lines = [
-        "run_id,run_number,run_attempt,generated_at,status,workloads,nodes,controller_max_cpu_mcores,controller_max_memory_mib,pods_observed,deployments_observed,metrics_snapshots,top_snapshots",
+        "run_id,run_key,run_number,run_attempt,generated_at,status,controller_install_order,workloads,nodes,controller_max_cpu_mcores,controller_max_memory_mib,pods_observed,deployments_observed,metrics_snapshots,top_snapshots",
     ]
     for entry in history:
         csv_lines.append(
             ",".join(
                 [
                     str(entry.get("run_id", "")),
+                    str(entry.get("run_key", f"{entry.get('run_id', '')}:{entry.get('controller_install_order', 'unknown')}")),
                     str(entry.get("run_number", "")),
                     str(entry.get("run_attempt", "")),
                     str(entry.get("generated_at", "")),
                     str(entry.get("status", "")),
+                    str(entry.get("controller_install_order", "")),
                     str(entry.get("workloads", "")),
                     str(entry.get("nodes", "")),
                     str(entry.get("controller_max_cpu_mcores", "")),
