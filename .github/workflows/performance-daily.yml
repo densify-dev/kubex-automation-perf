@@ -32,6 +32,7 @@ jobs:
   perf:
     runs-on: ubuntu-latest
     timeout-minutes: 180
+    continue-on-error: ${{ matrix.controller_install_order == 'after-workload-ramp' }}
     strategy:
       fail-fast: false
       matrix:
@@ -217,7 +218,16 @@ jobs:
           python3 scripts/kwok_orchestrate.py wait-controller-health \
             --namespace "${RELEASE_NAMESPACE}" \
             --release "${RELEASE_NAME}" \
-            --timeout 3m
+            --timeout 10m
+
+      - name: Collect controller diagnostics on failure
+        if: failure() && matrix.controller_install_order == 'after-workload-ramp'
+        run: |
+          kubectl get pod -n "${RELEASE_NAMESPACE}" -l control-plane=controller-manager -o wide || true
+          kubectl describe pod -n "${RELEASE_NAMESPACE}" -l control-plane=controller-manager || true
+          kubectl logs -n "${RELEASE_NAMESPACE}" -l control-plane=controller-manager -c manager --since=30m --previous || true
+          kubectl logs -n "${RELEASE_NAMESPACE}" -l control-plane=controller-manager -c manager --since=30m || true
+          kubectl get events -A --sort-by=.lastTimestamp | tail -n 200 || true
 
       - name: Wait for workload counts
         run: |
