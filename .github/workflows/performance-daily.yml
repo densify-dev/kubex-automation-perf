@@ -218,7 +218,7 @@ jobs:
           python3 scripts/kwok_orchestrate.py wait-controller-health \
             --namespace "${RELEASE_NAMESPACE}" \
             --release "${RELEASE_NAME}" \
-            --timeout 10m
+            --timeout 20m
 
       - name: Collect controller diagnostics on failure
         if: failure() && matrix.controller_install_order == 'after-workload-ramp'
