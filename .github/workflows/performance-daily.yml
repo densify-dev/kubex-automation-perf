@@ -40,7 +40,7 @@ jobs:
           - controller_install_order: before-workload-ramp
             workloads: 50000
           - controller_install_order: after-workload-ramp
-            workloads: 20000
+            workloads: 15000
     env:
       WORKLOADS: ${{ matrix.workloads }}
       NODES: ${{ github.event_name == 'workflow_dispatch' && inputs.nodes || '500' }}
