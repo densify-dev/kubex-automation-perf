@@ -36,11 +36,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        controller_install_order:
-          - before-workload-ramp
-          - after-workload-ramp
+        include:
+          - controller_install_order: before-workload-ramp
+            workloads: 50000
+          - controller_install_order: after-workload-ramp
+            workloads: 10000
     env:
-      WORKLOADS: ${{ github.event_name == 'workflow_dispatch' && inputs.workloads || '50000' }}
+      WORKLOADS: ${{ matrix.workloads }}
       NODES: ${{ github.event_name == 'workflow_dispatch' && inputs.nodes || '500' }}
       CHART_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.chart_version || 'latest' }}
       CLUSTER_NAME: performance-daily
