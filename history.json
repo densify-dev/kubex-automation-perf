@@ -1,5 +1,75 @@
 [
   {
+    "controller_install_order": "before-workload-ramp",
+    "controller_max_cpu_mcores": 480.0,
+    "controller_max_memory_mib": 1218.0,
+    "deployments_observed": 16660,
+    "generated_at": "2026-05-24T03:59:39.241982+00:00",
+    "live_counts": [
+      {
+        "cronjobs": 16660,
+        "daemonsets": 20,
+        "deployments": 16660,
+        "pods": 12472,
+        "statefulsets": 16660,
+        "timestamp": "20260524T033515Z"
+      },
+      {
+        "cronjobs": 16660,
+        "daemonsets": 20,
+        "deployments": 16660,
+        "pods": 12942,
+        "statefulsets": 16660,
+        "timestamp": "20260524T033741Z"
+      },
+      {
+        "cronjobs": 16660,
+        "daemonsets": 20,
+        "deployments": 16660,
+        "pods": 13662,
+        "statefulsets": 16660,
+        "timestamp": "20260524T034025Z"
+      },
+      {
+        "cronjobs": 16660,
+        "daemonsets": 20,
+        "deployments": 16660,
+        "pods": 14302,
+        "statefulsets": 16660,
+        "timestamp": "20260524T034400Z"
+      },
+      {
+        "cronjobs": 16660,
+        "daemonsets": 20,
+        "deployments": 16660,
+        "pods": 14917,
+        "statefulsets": 16660,
+        "timestamp": "20260524T034744Z"
+      }
+    ],
+    "metrics": {
+      "controller_runtime_reconcile_errors_total": 0.0,
+      "controller_runtime_reconcile_total": 67272.0,
+      "go_goroutines": 471.0,
+      "process_cpu_seconds_total": 256.83,
+      "process_resident_memory_bytes": 1145012224.0,
+      "workqueue_depth": 16416.0
+    },
+    "metrics_snapshots": 5,
+    "nodes": 500,
+    "pods_observed": 16318,
+    "ref_name": "main",
+    "run_attempt": 1,
+    "run_id": 26350620958,
+    "run_key": "26350620958:before-workload-ramp",
+    "run_number": 11,
+    "run_url": "https://github.com/densify-dev/kubex-automation-perf/actions/runs/26350620958",
+    "sha": "72a66dffed388df4023c65a421e17b6234ac1964",
+    "status": "success",
+    "top_snapshots": 5,
+    "workloads": 50000
+  },
+  {
     "controller_install_order": "after-workload-ramp",
     "controller_max_cpu_mcores": 225.0,
     "controller_max_memory_mib": 936.0,
