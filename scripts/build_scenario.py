@@ -128,18 +128,37 @@ def render_policy(name: str, strategy_name: str, namespaces: list[str]) -> str:
     return yaml_block(lines)
 
 
-def workload_kind(index: int) -> str:
-    if index % 2500 == 0:
+def workload_kind(index: int, counts: dict[str, int] | None = None) -> str:
+    if counts is None:
+        if index % 2500 == 0:
+            return "DaemonSet"
+        kinds = ["Deployment", "StatefulSet", "CronJob"]
+        return kinds[(index - 1) % len(kinds)]
+
+    deployment_count = counts.get("Deployment", 0)
+    statefulset_count = counts.get("StatefulSet", 0)
+    cronjob_count = counts.get("CronJob", 0)
+    daemonset_count = counts.get("DaemonSet", 0)
+
+    if index <= deployment_count:
+        return "Deployment"
+    if index <= deployment_count + statefulset_count:
+        return "StatefulSet"
+    if index <= deployment_count + statefulset_count + cronjob_count:
+        return "CronJob"
+    if index <= deployment_count + statefulset_count + cronjob_count + daemonset_count:
         return "DaemonSet"
-    kinds = ["Deployment", "StatefulSet", "CronJob"]
-    return kinds[(index - 1) % len(kinds)]
+    raise ValueError(f"workload index {index} exceeds configured workload counts")
 
 
-def workload_kind_counts(total: int) -> dict[str, int]:
-    counts = {"Deployment": 0, "StatefulSet": 0, "CronJob": 0, "DaemonSet": 0}
+def workload_kind_counts(total: int, counts: dict[str, int] | None = None) -> dict[str, int]:
+    if counts is not None:
+        return counts
+
+    result = {"Deployment": 0, "StatefulSet": 0, "CronJob": 0, "DaemonSet": 0}
     for index in range(1, total + 1):
-        counts[workload_kind(index)] += 1
-    return counts
+        result[workload_kind(index)] += 1
+    return result
 
 
 def workload_labels(namespace: str, index: int, indent: int) -> list[str]:
@@ -294,7 +313,13 @@ def render_workload(namespace: str, index: int, kind: str) -> str:
     raise ValueError(f"unsupported workload kind: {kind}")
 
 
-def write_batches(output_dir: Path, namespaces: list[str], workloads: int, batch_size: int) -> int:
+def write_batches(
+    output_dir: Path,
+    namespaces: list[str],
+    workloads: int,
+    batch_size: int,
+    counts: dict[str, int] | None = None,
+) -> int:
     batch_dir = output_dir / "workloads"
     batch_dir.mkdir(parents=True, exist_ok=True)
     batch_files = 0
@@ -304,7 +329,7 @@ def write_batches(output_dir: Path, namespaces: list[str], workloads: int, batch
         parts: list[str] = []
         for index in range(start, end + 1):
             namespace = namespaces[(index - 1) % len(namespaces)]
-            parts.append(render_workload(namespace, index, workload_kind(index)))
+            parts.append(render_workload(namespace, index, workload_kind(index, counts)))
         batch_path.write_text("---\n".join(parts), encoding="utf-8")
         batch_files += 1
     return batch_files
@@ -325,6 +350,10 @@ def main() -> int:
     parser.add_argument("--strategy-name", default="perf-static-strategy")
     parser.add_argument("--policy-name", default="perf-static-policy")
     parser.add_argument("--controller-install-order", default="before-workload-ramp")
+    parser.add_argument("--deployments", type=int)
+    parser.add_argument("--statefulsets", type=int)
+    parser.add_argument("--cronjobs", type=int)
+    parser.add_argument("--daemonsets", type=int)
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -334,6 +363,19 @@ def main() -> int:
     namespace_count = max(1, min(args.nodes // 15 or 1, 10))
     namespaces = [f"{args.namespace_prefix}-{idx:02d}" for idx in range(1, namespace_count + 1)]
 
+    explicit_counts = None
+    if any(value is not None for value in [args.deployments, args.statefulsets, args.cronjobs, args.daemonsets]):
+        if any(value is None for value in [args.deployments, args.statefulsets, args.cronjobs, args.daemonsets]):
+            raise ValueError("all workload kind counts must be provided together")
+        explicit_counts = {
+            "Deployment": args.deployments,
+            "StatefulSet": args.statefulsets,
+            "CronJob": args.cronjobs,
+            "DaemonSet": args.daemonsets,
+        }
+        if sum(explicit_counts.values()) != args.workloads:
+            raise ValueError("workload kind counts must sum to --workloads")
+
     (output_dir / "install-values.yaml").write_text(
         render_install_values(args.kubex_host, args.kubex_cluster_name), encoding="utf-8"
     )
@@ -342,7 +384,7 @@ def main() -> int:
     (output_dir / "policy.yaml").write_text(
         render_policy(args.policy_name, args.strategy_name, namespaces), encoding="utf-8"
     )
-    batch_files = write_batches(output_dir, namespaces, args.workloads, args.batch_size)
+    batch_files = write_batches(output_dir, namespaces, args.workloads, args.batch_size, explicit_counts)
 
     metadata = {
         "cluster_name": args.cluster_name,
@@ -354,7 +396,7 @@ def main() -> int:
         "namespace_count": len(namespaces),
         "batch_size": args.batch_size,
         "batch_files": batch_files,
-        "workload_kind_counts": workload_kind_counts(args.workloads),
+        "workload_kind_counts": workload_kind_counts(args.workloads, explicit_counts),
         "strategy_name": args.strategy_name,
         "policy_name": args.policy_name,
         "controller_install_order": args.controller_install_order,

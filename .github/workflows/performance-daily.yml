@@ -11,11 +11,11 @@ on:
       workloads:
         description: "Number of workloads to create"
         required: true
-        default: "50000"
+        default: "32010"
       nodes:
         description: "Number of KWOK nodes"
         required: true
-        default: "500"
+        default: "1000"
       chart_version:
         description: "Helm chart version to test"
         required: true
@@ -38,12 +38,22 @@ jobs:
       matrix:
         include:
           - controller_install_order: before-workload-ramp
-            workloads: 50000
+            workloads: 32010
+            deployments: 15000
+            statefulsets: 15000
+            cronjobs: 2000
+            daemonsets: 10
+            nodes: 1000
           - controller_install_order: after-workload-ramp
-            workloads: 15000
+            workloads: 32010
+            deployments: 15000
+            statefulsets: 15000
+            cronjobs: 2000
+            daemonsets: 10
+            nodes: 1000
     env:
       WORKLOADS: ${{ matrix.workloads }}
-      NODES: ${{ github.event_name == 'workflow_dispatch' && inputs.nodes || '500' }}
+      NODES: ${{ matrix.nodes }}
       CHART_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.chart_version || 'latest' }}
       CLUSTER_NAME: performance-daily
       KUBEX_CLUSTER_NAME: ${{ secrets.KUBEX_CLUSTER_NAME }}
@@ -127,6 +137,10 @@ jobs:
             --output-dir "${SCENARIO_DIR}" \
             --workloads "${WORKLOADS}" \
             --nodes "${NODES}" \
+            --deployments "${{ matrix.deployments }}" \
+            --statefulsets "${{ matrix.statefulsets }}" \
+            --cronjobs "${{ matrix.cronjobs }}" \
+            --daemonsets "${{ matrix.daemonsets }}" \
             --controller-install-order "${{ matrix.controller_install_order }}" \
             --cluster-name "${CLUSTER_NAME}" \
             --kubex-host "${KUBEX_URL_HOST}" \
