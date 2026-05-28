@@ -48,7 +48,7 @@ def render_install_values(kubex_host: str, kubex_cluster_name: str) -> str:
         resources:
           requests:
             cpu: 400m
-            memory: 4Gi
+            memory: 512Mi
           limits:
             cpu: "1"
             memory: 6Gi
