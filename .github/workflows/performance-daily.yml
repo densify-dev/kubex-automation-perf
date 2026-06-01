@@ -175,6 +175,15 @@ jobs:
             kubectl apply -f "$file"
           done
 
+      - name: Wait for workload counts before controller install
+        if: matrix.controller_install_order == 'after-workload-ramp'
+        run: |
+          python3 scripts/kwok_orchestrate.py wait-count \
+            --resource deployments.apps,statefulsets.apps,cronjobs.batch,daemonsets.apps \
+            --selector "app.kubernetes.io/name=kwok-perf" \
+            --expected "${WORKLOADS}" \
+            --timeout 30m
+
       - name: Install automation engine before workloads
         if: matrix.controller_install_order == 'before-workload-ramp'
         run: |
@@ -259,6 +268,7 @@ jobs:
           save_log "${DIAGNOSTICS_DIR}/kube-system-etcd.log" kubectl logs -n kube-system etcd-kwok-${CLUSTER_NAME}-control-plane --since=30m
 
       - name: Wait for workload counts
+        if: matrix.controller_install_order == 'before-workload-ramp'
         run: |
           python3 scripts/kwok_orchestrate.py wait-count \
             --resource deployments.apps,statefulsets.apps,cronjobs.batch,daemonsets.apps \
