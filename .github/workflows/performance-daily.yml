@@ -67,6 +67,7 @@ jobs:
       SCENARIO_DIR: artifacts/scenario
       METRICS_DIR: artifacts/metrics
       FINAL_DIR: artifacts/final
+      DIAGNOSTICS_DIR: artifacts/diagnostics
       REPORT_DIR: artifacts/report
     steps:
       - name: Check out repository
@@ -74,7 +75,7 @@ jobs:
 
       - name: Prepare artifact directories
         run: |
-          mkdir -p artifacts/scenario artifacts/metrics artifacts/final artifacts/report
+          mkdir -p artifacts/scenario artifacts/metrics artifacts/final artifacts/diagnostics artifacts/report
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -239,11 +240,23 @@ jobs:
       - name: Collect controller diagnostics on failure
         if: failure() && matrix.controller_install_order == 'after-workload-ramp'
         run: |
-          kubectl get pod -n "${RELEASE_NAMESPACE}" -l control-plane=controller-manager -o wide || true
-          kubectl describe pod -n "${RELEASE_NAMESPACE}" -l control-plane=controller-manager || true
-          kubectl logs -n "${RELEASE_NAMESPACE}" -l control-plane=controller-manager -c manager --since=30m --previous || true
-          kubectl logs -n "${RELEASE_NAMESPACE}" -l control-plane=controller-manager -c manager --since=30m || true
-          kubectl get events -A --sort-by=.lastTimestamp | tail -n 200 || true
+          mkdir -p "${DIAGNOSTICS_DIR}"
+          save_log() {
+            local path="$1"
+            shift
+            "$@" > "$path" 2>&1 || true
+          }
+          save_log "${DIAGNOSTICS_DIR}/kubex-controller-pods.txt" kubectl get pod -n "${RELEASE_NAMESPACE}" -l control-plane=controller-manager -o wide
+          save_log "${DIAGNOSTICS_DIR}/kubex-controller-deploy-rs-pod.txt" kubectl get deploy,rs,pod -n "${RELEASE_NAMESPACE}" -o wide
+          save_log "${DIAGNOSTICS_DIR}/kubex-controller-deployment-describe.txt" kubectl describe deployment "${RELEASE_NAME}" -n "${RELEASE_NAMESPACE}"
+          save_log "${DIAGNOSTICS_DIR}/kubex-controller-describe.txt" kubectl describe pod -n "${RELEASE_NAMESPACE}" -l control-plane=controller-manager
+          save_log "${DIAGNOSTICS_DIR}/kubex-controller-logs-previous.txt" kubectl logs -n "${RELEASE_NAMESPACE}" -l control-plane=controller-manager -c manager --since=30m --previous
+          save_log "${DIAGNOSTICS_DIR}/kubex-controller-logs-current.txt" kubectl logs -n "${RELEASE_NAMESPACE}" -l control-plane=controller-manager -c manager --since=30m
+          save_log "${DIAGNOSTICS_DIR}/kubex-events.txt" kubectl get events -A --sort-by=.lastTimestamp
+          save_log "${DIAGNOSTICS_DIR}/kube-system-controller-manager.log" kubectl logs -n kube-system kube-controller-manager-kwok-${CLUSTER_NAME}-control-plane --since=30m
+          save_log "${DIAGNOSTICS_DIR}/kube-system-scheduler.log" kubectl logs -n kube-system kube-scheduler-kwok-${CLUSTER_NAME}-control-plane --since=30m
+          save_log "${DIAGNOSTICS_DIR}/kube-system-apiserver.log" kubectl logs -n kube-system kube-apiserver-kwok-${CLUSTER_NAME}-control-plane --since=30m
+          save_log "${DIAGNOSTICS_DIR}/kube-system-etcd.log" kubectl logs -n kube-system etcd-kwok-${CLUSTER_NAME}-control-plane --since=30m
 
       - name: Wait for workload counts
         run: |
@@ -366,6 +379,7 @@ jobs:
             artifacts/scenario
             artifacts/metrics
             artifacts/final
+            artifacts/diagnostics
             artifacts/report
           if-no-files-found: warn
           retention-days: 30
