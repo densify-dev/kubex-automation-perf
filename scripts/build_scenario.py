@@ -54,6 +54,7 @@ def render_install_values(kubex_host: str, kubex_cluster_name: str) -> str:
             memory: 6Gi
         nodeSelector:
           node-role.kubernetes.io/control-plane: ""
+        priorityClassName: system-cluster-critical
         tolerations:
           - key: "kubernetes.io/arch"
             operator: "Exists"
