@@ -184,6 +184,14 @@ jobs:
             --expected "${WORKLOADS}" \
             --timeout 30m
 
+      - name: Re-uncordon kind control-plane before late install
+        if: matrix.controller_install_order == 'after-workload-ramp'
+        run: |
+          kubectl get nodes -o wide
+          control_plane_nodes=$(python3 -c 'import json, subprocess; data=json.loads(subprocess.check_output(["kubectl", "get", "nodes", "-o", "json"], text=True)); names=[item["metadata"]["name"] for item in data.get("items", []) if "node-role.kubernetes.io/control-plane" in item.get("metadata", {}).get("labels", {}) or "node-role.kubernetes.io/master" in item.get("metadata", {}).get("labels", {})]; print("\n".join(names))')
+          printf '%s\n' "$control_plane_nodes" | xargs -r kubectl uncordon
+          printf '%s\n' "$control_plane_nodes" | xargs -r kubectl get node -o wide
+
       - name: Install automation engine before workloads
         if: matrix.controller_install_order == 'before-workload-ramp'
         run: |
