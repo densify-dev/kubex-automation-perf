@@ -53,6 +53,7 @@ jobs:
             nodes: 1000
     env:
       WORKLOADS: ${{ matrix.workloads }}
+      LIVE_PODS: 40000
       NODES: ${{ matrix.nodes }}
       CHART_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.chart_version || 'latest' }}
       CLUSTER_NAME: performance-daily
@@ -182,6 +183,15 @@ jobs:
             --resource deployments.apps,statefulsets.apps,cronjobs.batch,daemonsets.apps \
             --selector "app.kubernetes.io/name=kwok-perf" \
             --expected "${WORKLOADS}" \
+            --timeout 30m
+
+      - name: Wait for live workload pods before late install
+        if: matrix.controller_install_order == 'after-workload-ramp'
+        run: |
+          python3 scripts/kwok_orchestrate.py wait-count \
+            --resource pods \
+            --selector "app.kubernetes.io/name=kwok-perf" \
+            --expected "${LIVE_PODS}" \
             --timeout 30m
 
       - name: Re-uncordon kind control-plane before late install
