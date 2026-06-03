@@ -55,7 +55,7 @@ def wait_for_count(resource: str, selector: str, expected: int, timeout: int, in
         if count != last_count:
             print(f"[{now_utc()}] workload count {resource}: observed={count} expected={expected}", flush=True)
             last_count = count
-        if count == expected:
+        if count >= expected:
             return 0
         time.sleep(interval)
 
