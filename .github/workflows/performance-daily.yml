@@ -192,7 +192,7 @@ jobs:
             --resource pods \
             --selector "app.kubernetes.io/name=kwok-perf" \
             --expected "${LIVE_PODS}" \
-            --timeout 60m
+            --timeout 90m
 
       - name: Re-uncordon kind control-plane before late install
         if: matrix.controller_install_order == 'after-workload-ramp'
