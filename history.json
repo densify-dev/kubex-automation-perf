@@ -1,5 +1,84 @@
 [
   {
+    "controller_install_order": "before-workload-ramp",
+    "controller_max_cpu_mcores": 480.0,
+    "controller_max_memory_mib": 1519.0,
+    "deployments_observed": 15000,
+    "generated_at": "2026-06-03T19:40:12.687178+00:00",
+    "live_counts": [
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 6855,
+        "statefulsets": 15000,
+        "timestamp": "20260603T192107Z"
+      },
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 9666,
+        "statefulsets": 15000,
+        "timestamp": "20260603T192246Z"
+      },
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 12841,
+        "statefulsets": 15000,
+        "timestamp": "20260603T192451Z"
+      },
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 16108,
+        "statefulsets": 15000,
+        "timestamp": "20260603T192643Z"
+      },
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 18783,
+        "statefulsets": 15000,
+        "timestamp": "20260603T192853Z"
+      },
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 20094,
+        "statefulsets": 15000,
+        "timestamp": "20260603T193117Z"
+      },
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 21514,
+        "statefulsets": 15000,
+        "timestamp": "20260603T193330Z"
+      }
+    ],
+    "metrics": {},
+    "metrics_snapshots": 7,
+    "nodes": 1000,
+    "pods_observed": 23485,
+    "ref_name": "main",
+    "run_attempt": 1,
+    "run_id": 26906870380,
+    "run_key": "26906870380:before-workload-ramp",
+    "run_number": 31,
+    "run_url": "https://github.com/densify-dev/kubex-automation-perf/actions/runs/26906870380",
+    "sha": "a9e6e4e8ee24a7627780e1871e748b38c0cb10a9",
+    "status": "success",
+    "top_snapshots": 7,
+    "workloads": 32010
+  },
+  {
     "controller_install_order": "after-workload-ramp",
     "controller_max_cpu_mcores": 0.0,
     "controller_max_memory_mib": 0.0,
