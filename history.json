@@ -1,5 +1,27 @@
 [
   {
+    "controller_install_order": "after-workload-ramp",
+    "controller_max_cpu_mcores": 0.0,
+    "controller_max_memory_mib": 0.0,
+    "deployments_observed": 15000,
+    "generated_at": "2026-06-03T03:59:14.891292+00:00",
+    "live_counts": [],
+    "metrics": {},
+    "metrics_snapshots": 0,
+    "nodes": 1000,
+    "pods_observed": 29493,
+    "ref_name": "main",
+    "run_attempt": 1,
+    "run_id": 26861704098,
+    "run_key": "26861704098:after-workload-ramp",
+    "run_number": 27,
+    "run_url": "https://github.com/densify-dev/kubex-automation-perf/actions/runs/26861704098",
+    "sha": "70c6c9e1ef2eadd1dd14ce9d2e51f8beda5df57a",
+    "status": "failure",
+    "top_snapshots": 0,
+    "workloads": 32010
+  },
+  {
     "controller_install_order": "before-workload-ramp",
     "controller_max_cpu_mcores": 633.0,
     "controller_max_memory_mib": 1156.0,
