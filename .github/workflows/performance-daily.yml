@@ -314,7 +314,15 @@ jobs:
 
       - name: Soak
         run: |
-          sleep 900
+          python3 - <<'PY'
+          import time
+          from datetime import datetime, timezone
+
+          for minute in range(15):
+              stamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+              print(f'[{stamp}] soak heartbeat {minute + 1}/15', flush=True)
+              time.sleep(60)
+          PY
 
       - name: Stop metrics collector
         if: always()
