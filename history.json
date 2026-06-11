@@ -1,6 +1,84 @@
 [
   {
     "controller_install_order": "before-workload-ramp",
+    "controller_max_cpu_mcores": 279.0,
+    "controller_max_memory_mib": 1095.0,
+    "deployments_observed": 15000,
+    "generated_at": "2026-06-11T04:03:59.476044+00:00",
+    "live_counts": [
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 6397,
+        "statefulsets": 15000,
+        "timestamp": "20260611T033601Z"
+      },
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 9367,
+        "statefulsets": 15000,
+        "timestamp": "20260611T033748Z"
+      },
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 12853,
+        "statefulsets": 15000,
+        "timestamp": "20260611T033954Z"
+      },
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 17218,
+        "statefulsets": 15000,
+        "timestamp": "20260611T034220Z"
+      },
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 18958,
+        "statefulsets": 15000,
+        "timestamp": "20260611T034527Z"
+      },
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 21029,
+        "statefulsets": 15000,
+        "timestamp": "20260611T034904Z"
+      }
+    ],
+    "metrics": {
+      "controller_runtime_reconcile_errors_total": 0.0,
+      "controller_runtime_reconcile_total": 60084.0,
+      "go_goroutines": 682.0,
+      "process_cpu_seconds_total": 247.63,
+      "process_resident_memory_bytes": 1029582848.0,
+      "workqueue_depth": 8102.0
+    },
+    "metrics_snapshots": 6,
+    "nodes": 1000,
+    "pods_observed": 24341,
+    "ref_name": "main",
+    "run_attempt": 1,
+    "run_id": 27321605871,
+    "run_key": "27321605871:before-workload-ramp",
+    "run_number": 42,
+    "run_url": "https://github.com/densify-dev/kubex-automation-perf/actions/runs/27321605871",
+    "sha": "3d9455591bde5de1d0b2d7a5084e975a23ad239d",
+    "status": "success",
+    "top_snapshots": 6,
+    "workloads": 32010
+  },
+  {
+    "controller_install_order": "before-workload-ramp",
     "controller_max_cpu_mcores": 300.0,
     "controller_max_memory_mib": 1039.0,
     "deployments_observed": 15000,
