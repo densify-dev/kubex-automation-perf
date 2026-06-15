@@ -33,15 +33,15 @@ fi
 
 mkdir -p "${output_dir}"
 
-timeout 2m kubectl get deploy,statefulsets,cronjobs -A -l app.kubernetes.io/name=kwok-perf -o wide >"${output_dir}/workloads.txt" 2>&1 || true
-timeout 2m kubectl get pod -A -l app.kubernetes.io/name=kwok-perf -o wide >"${output_dir}/pods.txt" 2>&1 || true
-timeout 2m kubectl get rs -A -l app.kubernetes.io/name=kwok-perf -o wide >"${output_dir}/replicasets.txt" 2>&1 || true
-timeout 2m kubectl get deploy,rs,pod -n "${namespace}" -o wide >"${output_dir}/controller-namespace.txt" 2>&1 || true
-timeout 2m kubectl get globalconfiguration global-config -o yaml >"${output_dir}/globalconfiguration.yaml" 2>&1 || true
-timeout 2m kubectl get clusterautomationstrategies >"${output_dir}/clusterautomationstrategies.txt" 2>&1 || true
-timeout 2m kubectl get clusterstaticpolicies >"${output_dir}/clusterstaticpolicies.txt" 2>&1 || true
-timeout 5m kubectl get events -A --sort-by=.lastTimestamp >"${output_dir}/events.txt" 2>&1 || true
-timeout 5m kubectl logs -n "${namespace}" -l control-plane=controller-manager -c manager --since=60m >"${output_dir}/controller.log" 2>&1 || true
+timeout 30s kubectl get deploy,statefulsets,cronjobs -A -l app.kubernetes.io/name=kwok-perf -o wide >"${output_dir}/workloads.txt" 2>&1 || true
+timeout 30s kubectl get pod -A -l app.kubernetes.io/name=kwok-perf -o wide >"${output_dir}/pods.txt" 2>&1 || true
+timeout 30s kubectl get rs -A -l app.kubernetes.io/name=kwok-perf -o wide >"${output_dir}/replicasets.txt" 2>&1 || true
+timeout 30s kubectl get deploy,rs,pod -n "${namespace}" -o wide >"${output_dir}/controller-namespace.txt" 2>&1 || true
+timeout 30s kubectl get globalconfiguration global-config -o yaml >"${output_dir}/globalconfiguration.yaml" 2>&1 || true
+timeout 30s kubectl get clusterautomationstrategies >"${output_dir}/clusterautomationstrategies.txt" 2>&1 || true
+timeout 30s kubectl get clusterstaticpolicies >"${output_dir}/clusterstaticpolicies.txt" 2>&1 || true
+timeout 1m kubectl get events -n "${namespace}" --sort-by=.lastTimestamp >"${output_dir}/events.txt" 2>&1 || true
+timeout 1m kubectl logs -n "${namespace}" -l control-plane=controller-manager -c manager --since=15m --tail=500 >"${output_dir}/controller.log" 2>&1 || true
 
 workloads=$(kubectl get deploy,statefulsets,cronjobs,daemonsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
 deployments=$(kubectl get deploy -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
