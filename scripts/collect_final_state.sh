@@ -43,14 +43,14 @@ timeout 30s kubectl get clusterstaticpolicies >"${output_dir}/clusterstaticpolic
 timeout 1m kubectl get events -n "${namespace}" --sort-by=.lastTimestamp >"${output_dir}/events.txt" 2>&1 || true
 timeout 1m kubectl logs -n "${namespace}" -l control-plane=controller-manager -c manager --since=15m --tail=500 >"${output_dir}/controller.log" 2>&1 || true
 
-workloads=$(kubectl get deploy,statefulsets,cronjobs,daemonsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
-deployments=$(kubectl get deploy -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
-statefulsets=$(kubectl get statefulsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
-cronjobs=$(kubectl get cronjobs -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
-daemonsets=$(kubectl get daemonsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
-pods=$(kubectl get pod -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
-replicasets=$(kubectl get rs -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ')
-controller_pods=$(kubectl get pod -n "${namespace}" -l control-plane=controller-manager -o name 2>/dev/null | wc -l | tr -d ' ')
+workloads=$(timeout 30s bash -lc 'kubectl get deploy,statefulsets,cronjobs,daemonsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d " "' || echo 0)
+deployments=$(timeout 30s bash -lc 'kubectl get deploy -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d " "' || echo 0)
+statefulsets=$(timeout 30s bash -lc 'kubectl get statefulsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d " "' || echo 0)
+cronjobs=$(timeout 30s bash -lc 'kubectl get cronjobs -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d " "' || echo 0)
+daemonsets=$(timeout 30s bash -lc 'kubectl get daemonsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d " "' || echo 0)
+pods=$(timeout 30s bash -lc 'kubectl get pod -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d " "' || echo 0)
+replicasets=$(timeout 30s bash -lc 'kubectl get rs -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d " "' || echo 0)
+controller_pods=$(timeout 30s bash -lc 'kubectl get pod -n "${namespace}" -l control-plane=controller-manager -o name 2>/dev/null | wc -l | tr -d " "' || echo 0)
 
 cat >"${output_dir}/counts.txt" <<EOF
 workloads=${workloads}
