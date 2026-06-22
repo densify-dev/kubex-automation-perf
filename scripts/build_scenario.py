@@ -348,6 +348,7 @@ def main() -> int:
     parser.add_argument("--release-name", default="kubex-automation-engine")
     parser.add_argument("--release-namespace", default="kubex")
     parser.add_argument("--namespace-prefix", default="perf")
+    parser.add_argument("--namespace-count", type=int)
     parser.add_argument("--strategy-name", default="perf-static-strategy")
     parser.add_argument("--policy-name", default="perf-static-policy")
     parser.add_argument("--controller-install-order", default="before-workload-ramp")
@@ -361,7 +362,7 @@ def main() -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "workloads").mkdir(exist_ok=True)
 
-    namespace_count = max(1, min(args.nodes // 15 or 1, 10))
+    namespace_count = args.namespace_count if args.namespace_count is not None else max(1, min(args.nodes // 15 or 1, 10))
     namespaces = [f"{args.namespace_prefix}-{idx:02d}" for idx in range(1, namespace_count + 1)]
 
     explicit_counts = None

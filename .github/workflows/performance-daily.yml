@@ -139,6 +139,7 @@ jobs:
             --output-dir "${SCENARIO_DIR}" \
             --workloads "${WORKLOADS}" \
             --nodes "${NODES}" \
+            --namespace-count 1000 \
             --deployments "${{ matrix.deployments }}" \
             --statefulsets "${{ matrix.statefulsets }}" \
             --cronjobs "${{ matrix.cronjobs }}" \
