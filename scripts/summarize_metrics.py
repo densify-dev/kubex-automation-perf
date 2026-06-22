@@ -173,6 +173,16 @@ def main() -> int:
         },
     }
 
+    kind_counts = metadata.get("workload_kind_counts", {})
+    daemonset_count = counts.get("daemonsets", 0)
+    deployment_count = counts.get("deployments", 0)
+    statefulset_count = counts.get("statefulsets", 0)
+    cronjob_count = counts.get("cronjobs", 0)
+    pod_bearing_objects = deployment_count + statefulset_count + cronjob_count + daemonset_count
+    daemonset_pod_target = daemonset_count * int(metadata.get("nodes", 0))
+    expected_steady_state_pods = deployment_count + statefulset_count + daemonset_pod_target
+    pod_delta = counts.get("pods", 0) - expected_steady_state_pods
+
     key_metrics = {
         "controller_max_cpu_mcores": round(top_cpu, 2),
         "controller_max_memory_mib": round(top_memory / (1024 * 1024), 2),
@@ -191,16 +201,6 @@ def main() -> int:
     summary["key_metrics"] = key_metrics
 
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-
-    kind_counts = metadata.get("workload_kind_counts", {})
-    daemonset_count = counts.get("daemonsets", 0)
-    deployment_count = counts.get("deployments", 0)
-    statefulset_count = counts.get("statefulsets", 0)
-    cronjob_count = counts.get("cronjobs", 0)
-    pod_bearing_objects = deployment_count + statefulset_count + cronjob_count + daemonset_count
-    daemonset_pod_target = daemonset_count * int(metadata.get("nodes", 0))
-    expected_steady_state_pods = deployment_count + statefulset_count + daemonset_pod_target
-    pod_delta = counts.get("pods", 0) - expected_steady_state_pods
 
     md_lines = [
         "# KWOK Nightly Summary",
