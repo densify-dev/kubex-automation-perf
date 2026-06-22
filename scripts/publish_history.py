@@ -45,6 +45,10 @@ def render_index() -> str:
       <h2>Live Pods (latest run)</h2>
       <canvas id="pods-chart" width="900" height="240"></canvas>
     </div>
+    <div class="card">
+      <h2>Latest key metrics</h2>
+      <div id="latest-metrics"></div>
+    </div>
   </div>
   <table id="runs" hidden>
     <thead>
@@ -58,6 +62,7 @@ def render_index() -> str:
         <th>Controller Memory</th>
         <th>Pods</th>
         <th>Metrics</th>
+        <th>Key metrics</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -116,6 +121,14 @@ def render_index() -> str:
       ctx.fillText(String(min.toFixed(2)), 4, top + height);
     }
 
+    function renderKeyMetrics(metrics, limit = Infinity) {
+      const entries = Object.entries(metrics || {}).slice(0, limit);
+      if (!entries.length) {
+        return '<p>No key metrics recorded.</p>';
+      }
+      return `<ul>${entries.map(([key, value]) => `<li><code>${key}</code>: ${value}</li>`).join('')}</ul>`;
+    }
+
     fetch('history.json')
       .then((r) => r.json())
       .then((runs) => {
@@ -129,8 +142,10 @@ def render_index() -> str:
         const orderedRuns = [...runs].reverse();
         const latest = runs[0];
         const latestStatus = document.querySelector('#latest-status');
+        const latestMetrics = document.querySelector('#latest-metrics');
         latestStatus.textContent = latest ? `${latest.status} (${latest.controller_install_order || 'unknown'}, ${latest.generated_at})` : 'No runs yet';
         latestStatus.style.color = latest && latest.status === 'success' ? '#16a34a' : '#dc2626';
+        latestMetrics.innerHTML = renderKeyMetrics(latest && latest.key_metrics);
         for (const run of runs) {
           const tr = document.createElement('tr');
           tr.innerHTML = `
@@ -142,7 +157,8 @@ def render_index() -> str:
             <td>${run.controller_max_cpu_mcores} m</td>
             <td>${run.controller_max_memory_mib} MiB</td>
             <td>${run.pods_observed}</td>
-          <td>${run.metrics_snapshots}</td>`;
+            <td>${run.metrics_snapshots}</td>
+            <td>${renderKeyMetrics(run.key_metrics, 4)}</td>`;
           tbody.appendChild(tr);
         }
         for (const run of orderedRuns) {
@@ -210,6 +226,7 @@ def main() -> int:
         "top_snapshots": summary.get("samples", {}).get("top_snapshots", 0),
         "live_counts": summary.get("live_counts", []),
         "metrics": summary.get("metrics", {}),
+        "key_metrics": summary.get("key_metrics", {}),
     }
 
     latest_path = runs_dir / f"{record['run_key']}.json"

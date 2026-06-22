@@ -173,6 +173,23 @@ def main() -> int:
         },
     }
 
+    key_metrics = {
+        "controller_max_cpu_mcores": round(top_cpu, 2),
+        "controller_max_memory_mib": round(top_memory / (1024 * 1024), 2),
+        "workload_objects_observed": workload_total(counts),
+        "pod_bearing_workload_objects_observed": pod_bearing_objects,
+        "expected_live_pods_from_daemonsets": daemonset_pod_target,
+        "expected_steady_state_live_pods": expected_steady_state_pods,
+        "workload_pods_observed": counts.get("pods", 0),
+        "live_pod_delta_vs_target": pod_delta,
+        "metrics_snapshots": len(metrics_files),
+        "top_snapshots": len(top_files),
+        "live_count_snapshots": len(live_counts),
+    }
+    for key in sorted(gauge_candidates):
+        key_metrics[key] = gauge_candidates[key]
+    summary["key_metrics"] = key_metrics
+
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     kind_counts = metadata.get("workload_kind_counts", {})
@@ -209,8 +226,8 @@ def main() -> int:
         "",
         "## Key metrics",
     ]
-    for key in sorted(gauge_candidates):
-        md_lines.append(f"- {key}: {gauge_candidates[key]}")
+    for key, value in key_metrics.items():
+        md_lines.append(f"- {key}: {value}")
     md_lines.extend([
         "",
         "## Artifacts",
