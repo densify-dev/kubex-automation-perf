@@ -103,6 +103,16 @@ def parse_live_count_snapshot(path: Path) -> dict[str, object] | None:
     return counts
 
 
+def parse_scrape_status(path: Path) -> dict[str, str] | None:
+    status: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        status[key.strip()] = value.strip()
+    return status or None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--metadata", required=True)
@@ -118,10 +128,16 @@ def main() -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     metrics_files = sorted((metrics_dir / "metrics").glob("*.prom"))
+    metrics_status_files = sorted((metrics_dir / "metrics").glob("*.status"))
     top_files = sorted((metrics_dir / "top").glob("top-pod-*.txt"))
     live_count_files = sorted((metrics_dir / "snapshots").glob("live-counts-*.txt"))
 
     latest_metrics = metrics_files[-1].read_text(encoding="utf-8") if metrics_files else ""
+    empty_metrics_files = [path for path in metrics_files if not path.read_text(encoding="utf-8").strip()]
+    scrape_statuses = [parse_scrape_status(path) for path in metrics_status_files]
+    scrape_statuses = [status for status in scrape_statuses if status]
+    scrape_empty_count = sum(1 for status in scrape_statuses if status.get("status") == "empty")
+    scrape_error_count = sum(1 for status in scrape_statuses if status.get("status") == "error")
     gauge_candidates = defaultdict(float)
     for name in [
         "process_resident_memory_bytes",
@@ -153,12 +169,20 @@ def main() -> int:
             live_counts.append(sample)
 
     latest_live_pods = live_counts[-1]["pods"] if live_counts else counts.get("pods", 0)
+    metrics_capture_issue = None
+    if metrics_files and len(empty_metrics_files) == len(metrics_files):
+        metrics_capture_issue = f"all {len(metrics_files)} metrics scrapes were empty"
+    elif scrape_error_count:
+        metrics_capture_issue = f"{scrape_error_count} metrics scrape(s) failed"
+    elif scrape_empty_count:
+        metrics_capture_issue = f"{scrape_empty_count} metrics scrape(s) returned empty output"
 
     summary = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "scenario": metadata,
         "samples": {
             "metrics_snapshots": len(metrics_files),
+            "empty_metrics_snapshots": len(empty_metrics_files),
             "top_snapshots": len(top_files),
             "live_count_snapshots": len(live_counts),
         },
@@ -196,6 +220,8 @@ def main() -> int:
         "latest_live_pods_observed": latest_live_pods,
         "workload_pods_observed": latest_live_pods,
         "live_pod_delta_vs_target": latest_live_pods - expected_steady_state_pods,
+        "empty_metrics_snapshots": len(empty_metrics_files),
+        "metrics_capture_issue": metrics_capture_issue or "ok",
         "metrics_snapshots": len(metrics_files),
         "top_snapshots": len(top_files),
         "live_count_snapshots": len(live_counts),
@@ -216,6 +242,7 @@ def main() -> int:
         f"- namespaces: {metadata['namespace_count']}",
         f"- batches: {metadata['batch_files']}",
         f"- metrics snapshots: {len(metrics_files)}",
+        f"- empty metrics snapshots: {len(empty_metrics_files)}",
         f"- live count snapshots: {len(live_counts)}",
         f"- controller max CPU: {round(top_cpu, 2)} mcores",
         f"- controller max memory: {round(top_memory / (1024 * 1024), 2)} MiB",
@@ -228,6 +255,8 @@ def main() -> int:
         f"- live pod delta vs target: {latest_live_pods - expected_steady_state_pods}",
         "",
         "CronJobs are active, but they are scheduled workloads rather than a steady-state pod source.",
+        "",
+        f"Metrics capture status: {metrics_capture_issue or 'ok'}",
         "",
         "## Key metrics",
     ]
