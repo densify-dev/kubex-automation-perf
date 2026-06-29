@@ -152,6 +152,8 @@ def main() -> int:
         if sample:
             live_counts.append(sample)
 
+    latest_live_pods = live_counts[-1]["pods"] if live_counts else counts.get("pods", 0)
+
     summary = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "scenario": metadata,
@@ -190,8 +192,10 @@ def main() -> int:
         "pod_bearing_workload_objects_observed": pod_bearing_objects,
         "expected_live_pods_from_daemonsets": daemonset_pod_target,
         "expected_steady_state_live_pods": expected_steady_state_pods,
-        "workload_pods_observed": counts.get("pods", 0),
-        "live_pod_delta_vs_target": pod_delta,
+        "final_pods_observed": counts.get("pods", 0),
+        "latest_live_pods_observed": latest_live_pods,
+        "workload_pods_observed": latest_live_pods,
+        "live_pod_delta_vs_target": latest_live_pods - expected_steady_state_pods,
         "metrics_snapshots": len(metrics_files),
         "top_snapshots": len(top_files),
         "live_count_snapshots": len(live_counts),
@@ -219,8 +223,9 @@ def main() -> int:
         f"- pod-bearing workload objects observed: {pod_bearing_objects}",
         f"- expected live pods from daemonsets: {daemonset_pod_target}",
         f"- expected steady-state live pods: {expected_steady_state_pods}",
-        f"- workload pods observed: {counts.get('pods', 0)}",
-        f"- live pod delta vs target: {pod_delta}",
+        f"- final pods observed: {counts.get('pods', 0)}",
+        f"- latest live pods observed: {latest_live_pods}",
+        f"- live pod delta vs target: {latest_live_pods - expected_steady_state_pods}",
         "",
         "CronJobs are active, but they are scheduled workloads rather than a steady-state pod source.",
         "",
