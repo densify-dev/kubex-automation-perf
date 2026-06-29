@@ -138,6 +138,7 @@ def main() -> int:
     scrape_statuses = [status for status in scrape_statuses if status]
     scrape_empty_count = sum(1 for status in scrape_statuses if status.get("status") == "empty")
     scrape_error_count = sum(1 for status in scrape_statuses if status.get("status") == "error")
+    scrape_recovered_count = sum(1 for status in scrape_statuses if status.get("status") == "success" and status.get("bytes") not in {None, "0"})
     gauge_candidates = defaultdict(float)
     for name in [
         "process_resident_memory_bytes",
@@ -176,6 +177,8 @@ def main() -> int:
         metrics_capture_issue = f"{scrape_error_count} metrics scrape(s) failed"
     elif scrape_empty_count:
         metrics_capture_issue = f"{scrape_empty_count} metrics scrape(s) returned empty output"
+    elif scrape_recovered_count:
+        metrics_capture_issue = "ok"
 
     summary = {
         "generated_at": datetime.now(timezone.utc).isoformat(),

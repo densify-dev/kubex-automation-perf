@@ -56,12 +56,35 @@ mkdir -p "${output_dir}/metrics" "${output_dir}/top" "${output_dir}/snapshots"
 service="${release}-metrics-service"
 port_forward_log="${output_dir}/port-forward.log"
 
-kubectl -n "${namespace}" port-forward "svc/${service}" "${port_forward_port}:8080" >"${port_forward_log}" 2>&1 &
-pf_pid=$!
+pf_pid=""
+
+start_port_forward() {
+  if [[ -n "${pf_pid}" ]]; then
+    kill "${pf_pid}" >/dev/null 2>&1 || true
+    wait "${pf_pid}" >/dev/null 2>&1 || true
+  fi
+  kubectl -n "${namespace}" port-forward "svc/${service}" "${port_forward_port}:8080" >"${port_forward_log}" 2>&1 &
+  pf_pid=$!
+}
+
+wait_for_port_forward() {
+  for _ in $(seq 1 20); do
+    if curl -fsS "http://127.0.0.1:${port_forward_port}/metrics" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+start_port_forward
+wait_for_port_forward || true
 
 cleanup() {
-  kill "${pf_pid}" >/dev/null 2>&1 || true
-  wait "${pf_pid}" >/dev/null 2>&1 || true
+  if [[ -n "${pf_pid}" ]]; then
+    kill "${pf_pid}" >/dev/null 2>&1 || true
+    wait "${pf_pid}" >/dev/null 2>&1 || true
+  fi
 }
 trap cleanup EXIT
 
@@ -90,9 +113,24 @@ while [[ ! -f "${stop_file}" ]]; do
       printf 'status=empty\nreason=empty_response\n' >"${metrics_status_file}"
     fi
   else
-    rc=$?
-    : >"${metrics_file}"
-    printf 'status=error\nreason=curl_failed\nexit_code=%s\n' "${rc}" >"${metrics_status_file}"
+    start_port_forward
+    if wait_for_port_forward; then
+      if curl -fsS "http://127.0.0.1:${port_forward_port}/metrics" >"${metrics_file}"; then
+        if [[ -s "${metrics_file}" ]]; then
+          printf 'status=success\nbytes=%s\n' "$(wc -c <"${metrics_file}" | tr -d ' ')" >"${metrics_status_file}"
+        else
+          printf 'status=empty\nreason=empty_response\n' >"${metrics_status_file}"
+        fi
+      else
+        rc=$?
+        : >"${metrics_file}"
+        printf 'status=error\nreason=curl_failed\nexit_code=%s\n' "${rc}" >"${metrics_status_file}"
+      fi
+    else
+      rc=$?
+      : >"${metrics_file}"
+      printf 'status=error\nreason=port_forward_unavailable\nexit_code=%s\n' "${rc}" >"${metrics_status_file}"
+    fi
   fi
   kubectl top pod -n "${namespace}" -l control-plane=controller-manager >"${output_dir}/top/top-pod-${ts}.txt" 2>&1 || true
   kubectl top node >"${output_dir}/top/top-node-${ts}.txt" 2>&1 || true
