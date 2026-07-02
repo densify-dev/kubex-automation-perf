@@ -1,5 +1,69 @@
 [
   {
+    "controller_install_order": "after-workload-ramp",
+    "controller_max_cpu_mcores": 554.0,
+    "controller_max_memory_mib": 1913.0,
+    "deployments_observed": 15000,
+    "generated_at": "2026-07-02T04:40:34.641311+00:00",
+    "key_metrics": {
+      "controller_max_cpu_mcores": 554.0,
+      "controller_max_memory_mib": 1913.0,
+      "empty_metrics_snapshots": 2,
+      "expected_live_pods_from_daemonsets": 10000,
+      "expected_steady_state_live_pods": 40000,
+      "final_pods_observed": 0,
+      "latest_live_pods_observed": 41994,
+      "live_count_snapshots": 3,
+      "live_pod_delta_vs_target": 1994,
+      "metrics_capture_issue": "2 metrics scrape(s) failed",
+      "metrics_snapshots": 4,
+      "pod_bearing_workload_objects_observed": 32010,
+      "top_snapshots": 4,
+      "workload_objects_observed": 32010,
+      "workload_pods_observed": 41994
+    },
+    "live_counts": [
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 42000,
+        "statefulsets": 15000,
+        "timestamp": "20260702T042057Z"
+      },
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 41994,
+        "statefulsets": 15000,
+        "timestamp": "20260702T042652Z"
+      },
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 41994,
+        "statefulsets": 15000,
+        "timestamp": "20260702T043108Z"
+      }
+    ],
+    "metrics": {},
+    "metrics_snapshots": 4,
+    "nodes": 1000,
+    "pods_observed": 0,
+    "ref_name": "main",
+    "run_attempt": 1,
+    "run_id": 28562837777,
+    "run_key": "28562837777:after-workload-ramp",
+    "run_number": 71,
+    "run_url": "https://github.com/densify-dev/kubex-automation-perf/actions/runs/28562837777",
+    "sha": "fa8457a3e6dd0987a1749458236057d0f0cec0e8",
+    "status": "success",
+    "top_snapshots": 4,
+    "workloads": 32010
+  },
+  {
     "controller_install_order": "before-workload-ramp",
     "controller_max_cpu_mcores": 910.0,
     "controller_max_memory_mib": 1139.0,
