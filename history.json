@@ -1,6 +1,83 @@
 [
   {
     "controller_install_order": "before-workload-ramp",
+    "controller_max_cpu_mcores": 854.0,
+    "controller_max_memory_mib": 1184.0,
+    "deployments_observed": 0,
+    "generated_at": "2026-07-11T03:50:21.039802+00:00",
+    "key_metrics": {
+      "controller_max_cpu_mcores": 854.0,
+      "controller_max_memory_mib": 1184.0,
+      "controller_runtime_reconcile_errors_total": 0.0,
+      "controller_runtime_reconcile_total": 27249.0,
+      "empty_metrics_snapshots": 0,
+      "expected_live_pods_from_daemonsets": 10000,
+      "expected_steady_state_live_pods": 10000,
+      "final_pods_observed": 0,
+      "go_goroutines": 676.0,
+      "latest_live_pods_observed": 19284,
+      "live_count_snapshots": 3,
+      "live_pod_delta_vs_target": 9284,
+      "metrics_capture_issue": "ok",
+      "metrics_snapshots": 4,
+      "pod_bearing_workload_objects_observed": 2010,
+      "process_cpu_seconds_total": 765.99,
+      "process_resident_memory_bytes": 1144311808.0,
+      "top_snapshots": 4,
+      "workload_objects_observed": 2010,
+      "workload_pods_observed": 19284,
+      "workqueue_depth": 19128.0
+    },
+    "live_counts": [
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 11287,
+        "statefulsets": 15000,
+        "timestamp": "20260711T033007Z"
+      },
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 16778,
+        "statefulsets": 15000,
+        "timestamp": "20260711T033343Z"
+      },
+      {
+        "cronjobs": 2000,
+        "daemonsets": 10,
+        "deployments": 15000,
+        "pods": 19284,
+        "statefulsets": 15000,
+        "timestamp": "20260711T033804Z"
+      }
+    ],
+    "metrics": {
+      "controller_runtime_reconcile_errors_total": 0.0,
+      "controller_runtime_reconcile_total": 27249.0,
+      "go_goroutines": 676.0,
+      "process_cpu_seconds_total": 765.99,
+      "process_resident_memory_bytes": 1144311808.0,
+      "workqueue_depth": 19128.0
+    },
+    "metrics_snapshots": 4,
+    "nodes": 1000,
+    "pods_observed": 0,
+    "ref_name": "main",
+    "run_attempt": 1,
+    "run_id": 29137575277,
+    "run_key": "29137575277:before-workload-ramp",
+    "run_number": 80,
+    "run_url": "https://github.com/densify-dev/kubex-automation-perf/actions/runs/29137575277",
+    "sha": "fa8457a3e6dd0987a1749458236057d0f0cec0e8",
+    "status": "success",
+    "top_snapshots": 4,
+    "workloads": 32010
+  },
+  {
+    "controller_install_order": "before-workload-ramp",
     "controller_max_cpu_mcores": 845.0,
     "controller_max_memory_mib": 1096.0,
     "deployments_observed": 0,
