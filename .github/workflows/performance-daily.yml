@@ -222,6 +222,20 @@ jobs:
             {"op":"add","path":"/spec/template/spec/dnsPolicy","value":"ClusterFirstWithHostNet"}
           ]'
 
+      - name: Start metrics collector
+        if: matrix.controller_install_order == 'before-workload-ramp'
+        run: |
+          mkdir -p "${METRICS_DIR}" "${FINAL_DIR}" "${REPORT_DIR}"
+          nohup bash scripts/collect_metrics.sh \
+            --namespace "${RELEASE_NAMESPACE}" \
+            --release "${RELEASE_NAME}" \
+            --port-forward-port "${METRICS_PORT_FORWARD}" \
+            --output-dir "${METRICS_DIR}" \
+            --stop-file "${METRICS_DIR}/stop" \
+            --interval 15 \
+            > "${METRICS_DIR}/collector.log" 2>&1 &
+          echo $! > "${METRICS_DIR}/collector.pid"
+
       - name: Wait for controller health before workloads
         if: matrix.controller_install_order == 'before-workload-ramp'
         run: |
@@ -256,6 +270,20 @@ jobs:
             {"op":"add","path":"/spec/template/spec/hostNetwork","value":true},
             {"op":"add","path":"/spec/template/spec/dnsPolicy","value":"ClusterFirstWithHostNet"}
           ]'
+
+      - name: Start metrics collector
+        if: matrix.controller_install_order == 'after-workload-ramp'
+        run: |
+          mkdir -p "${METRICS_DIR}" "${FINAL_DIR}" "${REPORT_DIR}"
+          nohup bash scripts/collect_metrics.sh \
+            --namespace "${RELEASE_NAMESPACE}" \
+            --release "${RELEASE_NAME}" \
+            --port-forward-port "${METRICS_PORT_FORWARD}" \
+            --output-dir "${METRICS_DIR}" \
+            --stop-file "${METRICS_DIR}/stop" \
+            --interval 15 \
+            > "${METRICS_DIR}/collector.log" 2>&1 &
+          echo $! > "${METRICS_DIR}/collector.pid"
 
       - name: Wait for controller health after workloads
         if: matrix.controller_install_order == 'after-workload-ramp'
@@ -294,19 +322,6 @@ jobs:
             --selector "app.kubernetes.io/name=kwok-perf" \
             --expected "${WORKLOADS}" \
             --timeout 30m
-
-      - name: Start metrics collector
-        run: |
-          mkdir -p "${METRICS_DIR}" "${FINAL_DIR}" "${REPORT_DIR}"
-          nohup bash scripts/collect_metrics.sh \
-            --namespace "${RELEASE_NAMESPACE}" \
-            --release "${RELEASE_NAME}" \
-            --port-forward-port "${METRICS_PORT_FORWARD}" \
-            --output-dir "${METRICS_DIR}" \
-            --stop-file "${METRICS_DIR}/stop" \
-            --interval 15 \
-            > "${METRICS_DIR}/collector.log" 2>&1 &
-          echo $! > "${METRICS_DIR}/collector.pid"
 
       - name: Apply automation resources
         run: |

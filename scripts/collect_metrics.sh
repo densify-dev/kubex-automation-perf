@@ -77,6 +77,40 @@ wait_for_port_forward() {
   return 1
 }
 
+scrape_metrics() {
+  local metrics_file="$1"
+  local metrics_status_file="$2"
+  local attempt rc empty_seen="false" failure_seen="false"
+
+  for attempt in 1 2 3 4 5; do
+    if curl -fsS --max-time 10 "http://127.0.0.1:${port_forward_port}/metrics" >"${metrics_file}"; then
+      if [[ -s "${metrics_file}" ]]; then
+        printf 'status=success\nbytes=%s\n' "$(wc -c <"${metrics_file}" | tr -d ' ')" >"${metrics_status_file}"
+        return 0
+      fi
+      empty_seen="true"
+    else
+      failure_seen="true"
+      rc=$?
+    fi
+
+    sleep 1
+
+    if [[ ${attempt} -lt 5 ]]; then
+      start_port_forward
+      wait_for_port_forward || true
+    fi
+  done
+
+  : >"${metrics_file}"
+  if [[ "${empty_seen}" == "true" && "${failure_seen}" != "true" ]]; then
+    printf 'status=empty\nreason=empty_response\n' >"${metrics_status_file}"
+  else
+    printf 'status=error\nreason=curl_failed\nexit_code=%s\n' "${rc:-1}" >"${metrics_status_file}"
+  fi
+  return 1
+}
+
 start_port_forward
 wait_for_port_forward || true
 
@@ -106,32 +140,7 @@ while [[ ! -f "${stop_file}" ]]; do
   ts=$(date -u +%Y%m%dT%H%M%SZ)
   metrics_file="${output_dir}/metrics/metrics-${ts}.prom"
   metrics_status_file="${output_dir}/metrics/metrics-${ts}.status"
-  if curl -fsS "http://127.0.0.1:${port_forward_port}/metrics" >"${metrics_file}"; then
-    if [[ -s "${metrics_file}" ]]; then
-      printf 'status=success\nbytes=%s\n' "$(wc -c <"${metrics_file}" | tr -d ' ')" >"${metrics_status_file}"
-    else
-      printf 'status=empty\nreason=empty_response\n' >"${metrics_status_file}"
-    fi
-  else
-    start_port_forward
-    if wait_for_port_forward; then
-      if curl -fsS "http://127.0.0.1:${port_forward_port}/metrics" >"${metrics_file}"; then
-        if [[ -s "${metrics_file}" ]]; then
-          printf 'status=success\nbytes=%s\n' "$(wc -c <"${metrics_file}" | tr -d ' ')" >"${metrics_status_file}"
-        else
-          printf 'status=empty\nreason=empty_response\n' >"${metrics_status_file}"
-        fi
-      else
-        rc=$?
-        : >"${metrics_file}"
-        printf 'status=error\nreason=curl_failed\nexit_code=%s\n' "${rc}" >"${metrics_status_file}"
-      fi
-    else
-      rc=$?
-      : >"${metrics_file}"
-      printf 'status=error\nreason=port_forward_unavailable\nexit_code=%s\n' "${rc}" >"${metrics_status_file}"
-    fi
-  fi
+  scrape_metrics "${metrics_file}" "${metrics_status_file}" || true
   kubectl top pod -n "${namespace}" -l control-plane=controller-manager >"${output_dir}/top/top-pod-${ts}.txt" 2>&1 || true
   kubectl top node >"${output_dir}/top/top-node-${ts}.txt" 2>&1 || true
   kubectl get deploy,statefulsets,cronjobs,daemonsets -A -l app.kubernetes.io/name=kwok-perf >"${output_dir}/snapshots/workloads-${ts}.txt" 2>&1 || true
