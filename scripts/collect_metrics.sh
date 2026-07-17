@@ -7,7 +7,9 @@ port_forward_port="18080"
 output_dir=""
 stop_file=""
 interval="15"
-count_interval="60"
+count_interval="30"
+heavy_snapshot_interval="120"
+kubectl_timeout="20"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -122,34 +124,47 @@ cleanup() {
 }
 trap cleanup EXIT
 
+run_kubectl() {
+  timeout "${kubectl_timeout}" kubectl "$@"
+}
+
 write_live_counts() {
   ts="$1"
   {
     echo "timestamp=${ts}"
-    kubectl get deploy -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'deployments=%s\n'
-    kubectl get statefulsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'statefulsets=%s\n'
-    kubectl get cronjobs -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'cronjobs=%s\n'
-    kubectl get daemonsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'daemonsets=%s\n'
-    kubectl get pod -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'pods=%s\n'
+    run_kubectl get deploy -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'deployments=%s\n'
+    run_kubectl get statefulsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'statefulsets=%s\n'
+    run_kubectl get cronjobs -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'cronjobs=%s\n'
+    run_kubectl get daemonsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'daemonsets=%s\n'
+    run_kubectl get pod -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'pods=%s\n'
   } >"${output_dir}/snapshots/live-counts-${ts}.txt"
 }
 
 next_count_at=$(date +%s)
+next_heavy_at=$(date +%s)
 
 while [[ ! -f "${stop_file}" ]]; do
   ts=$(date -u +%Y%m%dT%H%M%SZ)
   metrics_file="${output_dir}/metrics/metrics-${ts}.prom"
   metrics_status_file="${output_dir}/metrics/metrics-${ts}.status"
   scrape_metrics "${metrics_file}" "${metrics_status_file}" || true
-  kubectl top pod -n "${namespace}" -l control-plane=controller-manager >"${output_dir}/top/top-pod-${ts}.txt" 2>&1 || true
-  kubectl top node >"${output_dir}/top/top-node-${ts}.txt" 2>&1 || true
-  kubectl get deploy,statefulsets,cronjobs,daemonsets -A -l app.kubernetes.io/name=kwok-perf >"${output_dir}/snapshots/workloads-${ts}.txt" 2>&1 || true
-  kubectl get pod -A -l app.kubernetes.io/name=kwok-perf >"${output_dir}/snapshots/pods-${ts}.txt" 2>&1 || true
-  kubectl get globalconfiguration global-config -o yaml >"${output_dir}/snapshots/globalconfiguration-${ts}.yaml" 2>&1 || true
+  run_kubectl top pod -n "${namespace}" -l control-plane=controller-manager >"${output_dir}/top/top-pod-${ts}.txt" 2>&1 || true
+  run_kubectl top node >"${output_dir}/top/top-node-${ts}.txt" 2>&1 || true
   now=$(date +%s)
   if [[ ${now} -ge ${next_count_at} ]]; then
     write_live_counts "${ts}"
     next_count_at=$((now + count_interval))
+  fi
+  if [[ ${now} -ge ${next_heavy_at} ]]; then
+    if [[ -z "${heavy_pid:-}" ]] || ! kill -0 "${heavy_pid}" 2>/dev/null; then
+      (
+        run_kubectl get deploy,statefulsets,cronjobs,daemonsets -A -l app.kubernetes.io/name=kwok-perf >"${output_dir}/snapshots/workloads-${ts}.txt" 2>&1 || true
+        run_kubectl get pod -A -l app.kubernetes.io/name=kwok-perf >"${output_dir}/snapshots/pods-${ts}.txt" 2>&1 || true
+        run_kubectl get globalconfiguration global-config -o yaml >"${output_dir}/snapshots/globalconfiguration-${ts}.yaml" 2>&1 || true
+      ) &
+      heavy_pid=$!
+      next_heavy_at=$((now + heavy_snapshot_interval))
+    fi
   fi
   sleep "${interval}"
 done
