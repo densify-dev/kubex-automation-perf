@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import json
 from pathlib import Path
 
@@ -129,6 +131,10 @@ def render_index() -> str:
       return `<ul>${entries.map(([key, value]) => `<li><code>${key}</code>: ${value}</li>`).join('')}</ul>`;
     }
 
+    function formatMeasurement(value, unit) {
+      return value === null || value === undefined ? 'unavailable' : `${value}${unit ? ` ${unit}` : ''}`;
+    }
+
     fetch('history.json')
       .then((r) => r.json())
       .then((runs) => {
@@ -143,8 +149,8 @@ def render_index() -> str:
         const latest = runs[0];
         const latestStatus = document.querySelector('#latest-status');
         const latestMetrics = document.querySelector('#latest-metrics');
-        latestStatus.textContent = latest ? `${latest.status} (${latest.controller_install_order || 'unknown'}, ${latest.generated_at})` : 'No runs yet';
-        latestStatus.style.color = latest && latest.status === 'success' ? '#16a34a' : '#dc2626';
+        latestStatus.textContent = latest ? `${latest.status} / data ${latest.data_status || 'unknown'} (${latest.controller_install_order || 'unknown'}, ${latest.generated_at})` : 'No runs yet';
+        latestStatus.style.color = latest && latest.status === 'success' && latest.data_status === 'valid' ? '#16a34a' : '#dc2626';
         latestMetrics.innerHTML = renderKeyMetrics(latest && latest.key_metrics);
         for (const run of runs) {
           const tr = document.createElement('tr');
@@ -154,16 +160,20 @@ def render_index() -> str:
             <td>${run.generated_at}</td>
             <td>${run.status}</td>
             <td>${run.workloads}</td>
-            <td>${run.controller_max_cpu_mcores} m</td>
-            <td>${run.controller_max_memory_mib} MiB</td>
-            <td>${run.pods_observed}</td>
+            <td>${formatMeasurement(run.controller_max_cpu_mcores, 'm')}</td>
+            <td>${formatMeasurement(run.controller_max_memory_mib, 'MiB')}</td>
+            <td>${formatMeasurement(run.pods_observed, '')}</td>
             <td>${run.metrics_snapshots}</td>
             <td>${renderKeyMetrics(run.key_metrics, 4)}</td>`;
           tbody.appendChild(tr);
         }
         for (const run of orderedRuns) {
-          cpuPoints.push({ label: run.run_number, value: Number(run.controller_max_cpu_mcores || 0) });
-          memoryPoints.push({ label: run.run_number, value: Number(run.controller_max_memory_mib || 0) });
+          if (run.controller_max_cpu_mcores !== null && run.controller_max_cpu_mcores !== undefined) {
+            cpuPoints.push({ label: run.run_number, value: Number(run.controller_max_cpu_mcores) });
+          }
+          if (run.controller_max_memory_mib !== null && run.controller_max_memory_mib !== undefined) {
+            memoryPoints.push({ label: run.run_number, value: Number(run.controller_max_memory_mib) });
+          }
         }
         if (latest && Array.isArray(latest.live_counts)) {
           for (const sample of latest.live_counts) {
@@ -214,14 +224,16 @@ def main() -> int:
         "sha": args.sha,
         "ref_name": args.ref_name,
         "status": args.status,
+        "data_status": summary.get("data_status", "unknown"),
+        "data_issues": summary.get("data_issues", []),
         "generated_at": summary["generated_at"],
         "controller_install_order": summary["scenario"].get("controller_install_order", "unknown"),
         "workloads": summary["scenario"]["workloads"],
         "nodes": summary["scenario"]["nodes"],
         "controller_max_cpu_mcores": summary["controller"]["max_cpu_mcores"],
         "controller_max_memory_mib": summary["controller"]["max_memory_mib"],
-        "pods_observed": summary.get("counts", {}).get("pods", 0),
-        "deployments_observed": summary.get("counts", {}).get("deployments", 0),
+        "pods_observed": summary.get("counts", {}).get("pods"),
+        "deployments_observed": summary.get("counts", {}).get("deployments"),
         "metrics_snapshots": summary.get("samples", {}).get("metrics_snapshots", 0),
         "top_snapshots": summary.get("samples", {}).get("top_snapshots", 0),
         "live_counts": summary.get("live_counts", []),
@@ -240,35 +252,45 @@ def main() -> int:
             history = []
 
     history = [record] + [entry for entry in history if entry.get("run_key", f"{entry.get('run_id')}:{entry.get('controller_install_order', 'unknown')}") != record["run_key"]]
+    history.sort(
+        key=lambda entry: (
+            int(entry.get("run_number", 0)),
+            int(entry.get("run_attempt", 0)),
+            str(entry.get("generated_at", "")),
+            str(entry.get("controller_install_order", "")),
+        ),
+        reverse=True,
+    )
     history = history[:180]
     history_path.write_text(json.dumps(history, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    (pages_dir / "latest.json").write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    csv_lines = [
-        "run_id,run_key,run_number,run_attempt,generated_at,status,controller_install_order,workloads,nodes,controller_max_cpu_mcores,controller_max_memory_mib,pods_observed,deployments_observed,metrics_snapshots,top_snapshots",
-    ]
+    (pages_dir / "latest.json").write_text(json.dumps(history[0], indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    csv_output = io.StringIO()
+    csv_writer = csv.writer(csv_output, lineterminator="\n")
+    csv_writer.writerow([
+        "run_id", "run_key", "run_number", "run_attempt", "generated_at", "status",
+        "controller_install_order", "workloads", "nodes", "controller_max_cpu_mcores",
+        "controller_max_memory_mib", "pods_observed", "deployments_observed",
+        "metrics_snapshots", "top_snapshots",
+    ])
     for entry in history:
-        csv_lines.append(
-            ",".join(
-                [
-                    str(entry.get("run_id", "")),
-                    str(entry.get("run_key", f"{entry.get('run_id', '')}:{entry.get('controller_install_order', 'unknown')}")),
-                    str(entry.get("run_number", "")),
-                    str(entry.get("run_attempt", "")),
-                    str(entry.get("generated_at", "")),
-                    str(entry.get("status", "")),
-                    str(entry.get("controller_install_order", "")),
-                    str(entry.get("workloads", "")),
-                    str(entry.get("nodes", "")),
-                    str(entry.get("controller_max_cpu_mcores", "")),
-                    str(entry.get("controller_max_memory_mib", "")),
-                    str(entry.get("pods_observed", "")),
-                    str(entry.get("deployments_observed", "")),
-                    str(entry.get("metrics_snapshots", "")),
-                    str(entry.get("top_snapshots", "")),
-                ]
-            )
-        )
-    (pages_dir / "history.csv").write_text("\n".join(csv_lines) + "\n", encoding="utf-8")
+        csv_writer.writerow([
+            entry.get("run_id", ""),
+            entry.get("run_key", f"{entry.get('run_id', '')}:{entry.get('controller_install_order', 'unknown')}"),
+            entry.get("run_number", ""),
+            entry.get("run_attempt", ""),
+            entry.get("generated_at", ""),
+            entry.get("status", ""),
+            entry.get("controller_install_order", ""),
+            entry.get("workloads", ""),
+            entry.get("nodes", ""),
+            entry.get("controller_max_cpu_mcores", ""),
+            entry.get("controller_max_memory_mib", ""),
+            entry.get("pods_observed", ""),
+            entry.get("deployments_observed", ""),
+            entry.get("metrics_snapshots", ""),
+            entry.get("top_snapshots", ""),
+        ])
+    (pages_dir / "history.csv").write_text(csv_output.getvalue(), encoding="utf-8")
     (pages_dir / "index.html").write_text(render_index(), encoding="utf-8")
     return 0
 

@@ -46,14 +46,18 @@ def latest_snapshot(files: list[Path]) -> Path | None:
     return sorted(files)[-1] if files else None
 
 
-def read_counts(counts_path: Path) -> dict[str, int]:
+def read_counts(counts_path: Path) -> tuple[dict[str, int], list[str]]:
     counts: dict[str, int] = {}
+    unavailable: list[str] = []
     for line in counts_path.read_text(encoding="utf-8").splitlines():
         if "=" not in line:
             continue
         key, value = line.split("=", 1)
-        counts[key.strip()] = int(value.strip())
-    return counts
+        try:
+            counts[key.strip()] = int(value.strip())
+        except ValueError:
+            unavailable.append(key.strip())
+    return counts, unavailable
 
 
 def workload_total(counts: dict[str, int]) -> int:
@@ -68,7 +72,8 @@ def parse_top_pod(path: Path) -> dict[str, float] | None:
     if len(lines) < 2:
         return None
     rows = [re.split(r"\s+", line) for line in lines[1:]]
-    best: dict[str, float] | None = None
+    max_cpu_mcores: float | None = None
+    max_memory_bytes: float | None = None
     for row in rows:
         if len(row) < 3:
             continue
@@ -77,10 +82,11 @@ def parse_top_pod(path: Path) -> dict[str, float] | None:
             mem_b = parse_bytes(row[2])
         except ValueError:
             continue
-        candidate = {"cpu_mcores": cpu_m, "memory_bytes": mem_b}
-        if best is None or cpu_m > best["cpu_mcores"]:
-            best = candidate
-    return best
+        max_cpu_mcores = cpu_m if max_cpu_mcores is None else max(max_cpu_mcores, cpu_m)
+        max_memory_bytes = mem_b if max_memory_bytes is None else max(max_memory_bytes, mem_b)
+    if max_cpu_mcores is None or max_memory_bytes is None:
+        return None
+    return {"cpu_mcores": max_cpu_mcores, "memory_bytes": max_memory_bytes}
 
 
 def parse_live_count_snapshot(path: Path) -> dict[str, object] | None:
@@ -132,7 +138,8 @@ def main() -> int:
     top_files = sorted((metrics_dir / "top").glob("top-pod-*.txt"))
     live_count_files = sorted((metrics_dir / "snapshots").glob("live-counts-*.txt"))
 
-    latest_metrics = metrics_files[-1].read_text(encoding="utf-8") if metrics_files else ""
+    valid_metrics_files = [path for path in metrics_files if path.read_text(encoding="utf-8").strip()]
+    latest_metrics = valid_metrics_files[-1].read_text(encoding="utf-8") if valid_metrics_files else ""
     empty_metrics_files = [path for path in metrics_files if not path.read_text(encoding="utf-8").strip()]
     scrape_statuses = [parse_scrape_status(path) for path in metrics_status_files]
     scrape_statuses = [status for status in scrape_statuses if status]
@@ -153,16 +160,18 @@ def main() -> int:
             continue
         gauge_candidates[name] = max(values) if name in {"workqueue_depth"} else sum(values)
 
-    top_cpu = 0.0
-    top_memory = 0.0
+    top_cpu: float | None = None
+    top_memory: float | None = None
+    valid_top_samples = 0
     for path in top_files:
         sample = parse_top_pod(path)
         if not sample:
             continue
-        top_cpu = max(top_cpu, sample["cpu_mcores"])
-        top_memory = max(top_memory, sample["memory_bytes"])
+        valid_top_samples += 1
+        top_cpu = sample["cpu_mcores"] if top_cpu is None else max(top_cpu, sample["cpu_mcores"])
+        top_memory = sample["memory_bytes"] if top_memory is None else max(top_memory, sample["memory_bytes"])
 
-    counts = read_counts(final_dir / "counts.txt") if (final_dir / "counts.txt").exists() else {}
+    counts, unavailable_counts = read_counts(final_dir / "counts.txt") if (final_dir / "counts.txt").exists() else ({}, ["counts_file"])
     live_counts: list[dict[str, int]] = []
     for path in live_count_files:
         sample = parse_live_count_snapshot(path)
@@ -171,7 +180,9 @@ def main() -> int:
 
     latest_live_pods = live_counts[-1]["pods"] if live_counts else counts.get("pods", 0)
     metrics_capture_issue = None
-    if metrics_files and len(empty_metrics_files) == len(metrics_files):
+    if not metrics_files:
+        metrics_capture_issue = "no metrics scrapes were captured"
+    elif metrics_files and len(empty_metrics_files) == len(metrics_files):
         metrics_capture_issue = f"all {len(metrics_files)} metrics scrapes were empty"
     elif scrape_error_count:
         metrics_capture_issue = f"{scrape_error_count} metrics scrape(s) failed"
@@ -180,21 +191,35 @@ def main() -> int:
     elif scrape_recovered_count:
         metrics_capture_issue = "ok"
 
+    data_issues = []
+    if metrics_capture_issue != "ok":
+        data_issues.append(metrics_capture_issue)
+    if not valid_top_samples:
+        data_issues.append("no valid controller resource samples")
+    if unavailable_counts:
+        data_issues.append(f"unavailable final counts: {', '.join(unavailable_counts)}")
+
+    max_cpu_mcores = round(top_cpu, 2) if top_cpu is not None else None
+    max_memory_mib = round(top_memory / (1024 * 1024), 2) if top_memory is not None else None
     summary = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "scenario": metadata,
         "samples": {
             "metrics_snapshots": len(metrics_files),
             "empty_metrics_snapshots": len(empty_metrics_files),
+            "valid_metrics_snapshots": len(valid_metrics_files),
             "top_snapshots": len(top_files),
+            "valid_top_snapshots": valid_top_samples,
             "live_count_snapshots": len(live_counts),
         },
         "counts": counts,
         "live_counts": live_counts,
         "controller": {
-            "max_cpu_mcores": round(top_cpu, 2),
-            "max_memory_mib": round(top_memory / (1024 * 1024), 2),
+            "max_cpu_mcores": max_cpu_mcores,
+            "max_memory_mib": max_memory_mib,
         },
+        "data_status": "valid" if not data_issues else "degraded",
+        "data_issues": data_issues,
         "metrics": gauge_candidates,
         "artifacts": {
             "metrics_dir": str(metrics_dir),
@@ -213,8 +238,8 @@ def main() -> int:
     pod_delta = counts.get("pods", 0) - expected_steady_state_pods
 
     key_metrics = {
-        "controller_max_cpu_mcores": round(top_cpu, 2),
-        "controller_max_memory_mib": round(top_memory / (1024 * 1024), 2),
+        "controller_max_cpu_mcores": max_cpu_mcores,
+        "controller_max_memory_mib": max_memory_mib,
         "workload_objects_observed": workload_total(counts),
         "pod_bearing_workload_objects_observed": pod_bearing_objects,
         "expected_live_pods_from_daemonsets": daemonset_pod_target,
@@ -226,7 +251,9 @@ def main() -> int:
         "empty_metrics_snapshots": len(empty_metrics_files),
         "metrics_capture_issue": metrics_capture_issue or "ok",
         "metrics_snapshots": len(metrics_files),
+        "valid_metrics_snapshots": len(valid_metrics_files),
         "top_snapshots": len(top_files),
+        "valid_top_snapshots": valid_top_samples,
         "live_count_snapshots": len(live_counts),
     }
     for key in sorted(gauge_candidates):
@@ -247,8 +274,9 @@ def main() -> int:
         f"- metrics snapshots: {len(metrics_files)}",
         f"- empty metrics snapshots: {len(empty_metrics_files)}",
         f"- live count snapshots: {len(live_counts)}",
-        f"- controller max CPU: {round(top_cpu, 2)} mcores",
-        f"- controller max memory: {round(top_memory / (1024 * 1024), 2)} MiB",
+        f"- valid controller resource snapshots: {valid_top_samples}",
+        f"- controller max CPU: {max_cpu_mcores if max_cpu_mcores is not None else 'unavailable'} mcores",
+        f"- controller max memory: {max_memory_mib if max_memory_mib is not None else 'unavailable'} MiB",
         f"- workload objects observed: {workload_total(counts)}",
         f"- pod-bearing workload objects observed: {pod_bearing_objects}",
         f"- expected live pods from daemonsets: {daemonset_pod_target}",
@@ -260,6 +288,7 @@ def main() -> int:
         "CronJobs are active, but they are scheduled workloads rather than a steady-state pod source.",
         "",
         f"Metrics capture status: {metrics_capture_issue or 'ok'}",
+        f"Data status: {summary['data_status']}",
         "",
         "## Key metrics",
     ]

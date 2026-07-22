@@ -129,15 +129,22 @@ run_kubectl() {
 }
 
 write_live_counts() {
-  ts="$1"
-  {
+  local ts="$1"
+  local snapshot="${output_dir}/snapshots/live-counts-${ts}.txt"
+  local temporary="${snapshot}.tmp"
+  if {
     echo "timestamp=${ts}"
     run_kubectl get deploy -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'deployments=%s\n'
     run_kubectl get statefulsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'statefulsets=%s\n'
     run_kubectl get cronjobs -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'cronjobs=%s\n'
     run_kubectl get daemonsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'daemonsets=%s\n'
     run_kubectl get pod -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'pods=%s\n'
-  } >"${output_dir}/snapshots/live-counts-${ts}.txt"
+  } >"${temporary}"; then
+    mv "${temporary}" "${snapshot}"
+  else
+    rm -f "${temporary}"
+    return 1
+  fi
 }
 
 next_count_at=$(date +%s)
@@ -152,7 +159,7 @@ while [[ ! -f "${stop_file}" ]]; do
   run_kubectl top node >"${output_dir}/top/top-node-${ts}.txt" 2>&1 || true
   now=$(date +%s)
   if [[ ${now} -ge ${next_count_at} ]]; then
-    write_live_counts "${ts}"
+    write_live_counts "${ts}" || true
     next_count_at=$((now + count_interval))
   fi
   if [[ ${now} -ge ${next_heavy_at} ]]; then

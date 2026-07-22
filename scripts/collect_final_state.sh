@@ -43,14 +43,25 @@ timeout 30s kubectl get clusterstaticpolicies >"${output_dir}/clusterstaticpolic
 timeout 1m kubectl get events -n "${namespace}" --sort-by=.lastTimestamp >"${output_dir}/events.txt" 2>&1 || true
 timeout 1m kubectl logs -n "${namespace}" -l control-plane=controller-manager -c manager --since=15m --tail=500 >"${output_dir}/controller.log" 2>&1 || true
 
-workloads=$(timeout 30s bash -lc 'kubectl get deploy,statefulsets,cronjobs,daemonsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d " "' || echo 0)
-deployments=$(timeout 30s bash -lc 'kubectl get deploy -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d " "' || echo 0)
-statefulsets=$(timeout 30s bash -lc 'kubectl get statefulsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d " "' || echo 0)
-cronjobs=$(timeout 30s bash -lc 'kubectl get cronjobs -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d " "' || echo 0)
-daemonsets=$(timeout 30s bash -lc 'kubectl get daemonsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d " "' || echo 0)
-pods=$(timeout 30s bash -lc 'kubectl get pod -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d " "' || echo 0)
-replicasets=$(timeout 30s bash -lc 'kubectl get rs -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d " "' || echo 0)
-controller_pods=$(timeout 30s bash -lc 'kubectl get pod -n "${namespace}" -l control-plane=controller-manager -o name 2>/dev/null | wc -l | tr -d " "' || echo 0)
+count_resources() {
+  local output
+  if ! output=$(timeout 30s kubectl get "$@" -o name 2>/dev/null); then
+    printf 'unavailable\n'
+  elif [[ -z "${output}" ]]; then
+    printf '0\n'
+  else
+    wc -l <<<"${output}" | tr -d ' '
+  fi
+}
+
+workloads=$(count_resources deploy,statefulsets,cronjobs,daemonsets -A -l app.kubernetes.io/name=kwok-perf)
+deployments=$(count_resources deploy -A -l app.kubernetes.io/name=kwok-perf)
+statefulsets=$(count_resources statefulsets -A -l app.kubernetes.io/name=kwok-perf)
+cronjobs=$(count_resources cronjobs -A -l app.kubernetes.io/name=kwok-perf)
+daemonsets=$(count_resources daemonsets -A -l app.kubernetes.io/name=kwok-perf)
+pods=$(count_resources pod -A -l app.kubernetes.io/name=kwok-perf)
+replicasets=$(count_resources rs -A -l app.kubernetes.io/name=kwok-perf)
+controller_pods=$(count_resources pod -n "${namespace}" -l control-plane=controller-manager)
 
 cat >"${output_dir}/counts.txt" <<EOF
 workloads=${workloads}
