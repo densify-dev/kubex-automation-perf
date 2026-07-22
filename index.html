@@ -118,6 +118,10 @@
       return `<ul>${entries.map(([key, value]) => `<li><code>${key}</code>: ${value}</li>`).join('')}</ul>`;
     }
 
+    function formatMeasurement(value, unit) {
+      return value === null || value === undefined ? 'unavailable' : `${value}${unit ? ` ${unit}` : ''}`;
+    }
+
     fetch('history.json')
       .then((r) => r.json())
       .then((runs) => {
@@ -132,8 +136,8 @@
         const latest = runs[0];
         const latestStatus = document.querySelector('#latest-status');
         const latestMetrics = document.querySelector('#latest-metrics');
-        latestStatus.textContent = latest ? `${latest.status} (${latest.controller_install_order || 'unknown'}, ${latest.generated_at})` : 'No runs yet';
-        latestStatus.style.color = latest && latest.status === 'success' ? '#16a34a' : '#dc2626';
+        latestStatus.textContent = latest ? `${latest.status} / data ${latest.data_status || 'unknown'} (${latest.controller_install_order || 'unknown'}, ${latest.generated_at})` : 'No runs yet';
+        latestStatus.style.color = latest && latest.status === 'success' && latest.data_status === 'valid' ? '#16a34a' : '#dc2626';
         latestMetrics.innerHTML = renderKeyMetrics(latest && latest.key_metrics);
         for (const run of runs) {
           const tr = document.createElement('tr');
@@ -143,16 +147,20 @@
             <td>${run.generated_at}</td>
             <td>${run.status}</td>
             <td>${run.workloads}</td>
-            <td>${run.controller_max_cpu_mcores} m</td>
-            <td>${run.controller_max_memory_mib} MiB</td>
-            <td>${run.pods_observed}</td>
+            <td>${formatMeasurement(run.controller_max_cpu_mcores, 'm')}</td>
+            <td>${formatMeasurement(run.controller_max_memory_mib, 'MiB')}</td>
+            <td>${formatMeasurement(run.pods_observed, '')}</td>
             <td>${run.metrics_snapshots}</td>
             <td>${renderKeyMetrics(run.key_metrics, 4)}</td>`;
           tbody.appendChild(tr);
         }
         for (const run of orderedRuns) {
-          cpuPoints.push({ label: run.run_number, value: Number(run.controller_max_cpu_mcores || 0) });
-          memoryPoints.push({ label: run.run_number, value: Number(run.controller_max_memory_mib || 0) });
+          if (run.controller_max_cpu_mcores !== null && run.controller_max_cpu_mcores !== undefined) {
+            cpuPoints.push({ label: run.run_number, value: Number(run.controller_max_cpu_mcores) });
+          }
+          if (run.controller_max_memory_mib !== null && run.controller_max_memory_mib !== undefined) {
+            memoryPoints.push({ label: run.run_number, value: Number(run.controller_max_memory_mib) });
+          }
         }
         if (latest && Array.isArray(latest.live_counts)) {
           for (const sample of latest.live_counts) {
