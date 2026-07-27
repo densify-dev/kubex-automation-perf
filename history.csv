@@ -1,4 +1,5 @@
 run_id,run_key,run_number,run_attempt,generated_at,status,controller_install_order,workloads,nodes,controller_max_cpu_mcores,controller_max_memory_mib,pods_observed,deployments_observed,metrics_snapshots,top_snapshots
+30277038713,30277038713:before-workload-ramp,101,1,2026-07-27T15:29:24.724301+00:00,success,before-workload-ramp,25010,1000,894.0,1173.0,,,35,35
 30269719790,30269719790:after-workload-ramp,100,1,2026-07-27T14:31:14.094593+00:00,success,after-workload-ramp,25010,1000,982.0,1617.0,,,9,9
 30269719790,30269719790:before-workload-ramp,100,1,2026-07-27T14:00:05.615600+00:00,success,before-workload-ramp,25010,1000,900.0,1253.0,,,37,37
 30234076520,30234076520:after-workload-ramp,99,1,2026-07-27T04:49:24.202711+00:00,success,after-workload-ramp,32010,1000,991.0,1982.0,,,8,8
@@ -178,4 +179,3 @@ run_id,run_key,run_number,run_attempt,generated_at,status,controller_install_ord
 26293876678,26293876678:before-workload-ramp,8,1,2026-05-22T15:14:13.677075+00:00,success,before-workload-ramp,50000,500,226.0,1247.0,17229,16660,5,5
 26293876678,26293876678:after-workload-ramp,8,1,2026-05-22T15:02:25.472572+00:00,failure,after-workload-ramp,20000,500,0.0,0.0,17738,6664,0,0
 26290687345,26290687345:before-workload-ramp,7,1,2026-05-22T14:10:46.560512+00:00,success,before-workload-ramp,50000,500,444.0,1277.0,17277,16660,5,5
-26290687345,26290687345:after-workload-ramp,7,1,2026-05-22T14:03:23.005195+00:00,success,after-workload-ramp,10000,500,216.0,613.0,8973,3332,13,13
