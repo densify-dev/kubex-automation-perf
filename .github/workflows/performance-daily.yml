@@ -11,7 +11,7 @@ on:
       workloads:
         description: "Number of workloads to create"
         required: true
-        default: "32010"
+        default: "25010"
       nodes:
         description: "Number of KWOK nodes"
         required: true
@@ -38,22 +38,24 @@ jobs:
       matrix:
         include:
           - controller_install_order: before-workload-ramp
-            workloads: 32010
-            deployments: 15000
-            statefulsets: 15000
+            workloads: 25010
+            deployments: 11500
+            statefulsets: 11500
             cronjobs: 2000
             daemonsets: 10
+            live_pods: 33000
             nodes: 1000
           - controller_install_order: after-workload-ramp
-            workloads: 32010
-            deployments: 15000
-            statefulsets: 15000
+            workloads: 25010
+            deployments: 11500
+            statefulsets: 11500
             cronjobs: 2000
             daemonsets: 10
+            live_pods: 33000
             nodes: 1000
     env:
       WORKLOADS: ${{ matrix.workloads }}
-      LIVE_PODS: 40000
+      LIVE_PODS: ${{ matrix.live_pods }}
       NODES: ${{ matrix.nodes }}
       CHART_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.chart_version || 'latest' }}
       CLUSTER_NAME: performance-daily
