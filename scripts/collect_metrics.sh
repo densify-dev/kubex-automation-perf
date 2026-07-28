@@ -7,7 +7,7 @@ port_forward_port="18080"
 output_dir=""
 stop_file=""
 interval="15"
-count_interval="30"
+count_interval="120"
 heavy_snapshot_interval="120"
 kubectl_timeout="20"
 
@@ -133,12 +133,8 @@ write_live_counts() {
   local snapshot="${output_dir}/snapshots/live-counts-${ts}.txt"
   local temporary="${snapshot}.tmp"
   if {
-    echo "timestamp=${ts}"
-    run_kubectl get deploy -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'deployments=%s\n'
-    run_kubectl get statefulsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'statefulsets=%s\n'
-    run_kubectl get cronjobs -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'cronjobs=%s\n'
-    run_kubectl get daemonsets -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'daemonsets=%s\n'
-    run_kubectl get pod -A -l app.kubernetes.io/name=kwok-perf -o name 2>/dev/null | wc -l | tr -d ' ' | xargs printf 'pods=%s\n'
+    printf 'timestamp=%s\n' "${ts}"
+    python3 scripts/count_resources.py --namespace "${namespace}" --timeout "${kubectl_timeout}"
   } >"${temporary}"; then
     mv "${temporary}" "${snapshot}"
   else

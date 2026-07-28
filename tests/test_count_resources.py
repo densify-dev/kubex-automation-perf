@@ -6,23 +6,19 @@ from scripts.count_resources import collect_counts
 
 
 class CountResourcesTest(unittest.TestCase):
-    def test_counts_combined_workloads_and_other_resources(self) -> None:
+    def test_counts_workloads_and_other_resources(self) -> None:
         def run(command, **kwargs):
             resource = command[2]
-            if resource.startswith("deploy,"):
-                output = "\n".join([
-                    "deployment.apps/one",
-                    "deployment.apps/two",
-                    "statefulset.apps/one",
-                    "cronjob.batch/one",
-                    "daemonset.apps/one",
-                ])
+            if resource == "deploy":
+                output = "one\ntwo\n"
+            elif resource in {"statefulsets", "cronjobs", "daemonsets"}:
+                output = "one\n"
             elif resource == "rs":
-                output = "replicaset.apps/one\nreplicaset.apps/two\n"
+                output = "one\ntwo\n"
             elif "-A" in command:
-                output = "pod/one\npod/two\npod/three\n"
+                output = "one\ntwo\nthree\n"
             else:
-                output = "pod/controller\n"
+                output = "controller\n"
             return subprocess.CompletedProcess(command, 0, output, "")
 
         with patch("scripts.count_resources.subprocess.run", side_effect=run):
