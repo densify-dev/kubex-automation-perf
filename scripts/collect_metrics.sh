@@ -134,7 +134,7 @@ write_live_counts() {
   local temporary="${snapshot}.tmp"
   if {
     printf 'timestamp=%s\n' "${ts}"
-    python3 scripts/count_resources.py --namespace "${namespace}" --timeout "${kubectl_timeout}"
+    python3 scripts/count_resources.py --namespace "${namespace}" --timeout 120 --pods-only
   } >"${temporary}"; then
     mv "${temporary}" "${snapshot}"
   else

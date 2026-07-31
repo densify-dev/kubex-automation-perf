@@ -35,7 +35,7 @@ mkdir -p "${output_dir}"
 
 python3 scripts/count_resources.py \
   --namespace "${namespace}" \
-  --timeout 90 \
+  --timeout 180 \
   >"${output_dir}/counts.txt"
 
 timeout 30s kubectl get deploy,statefulsets,cronjobs -A -l app.kubernetes.io/name=kwok-perf -o wide >"${output_dir}/workloads.txt" 2>&1 || true

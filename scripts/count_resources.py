@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 
 WORKLOAD_SELECTOR = "app.kubernetes.io/name=kwok-perf"
+POD_QUERY = ["pod", "-A", "-l", WORKLOAD_SELECTOR]
 
 
 def kubectl_count(args: list[str], timeout: int) -> int | None:
@@ -32,7 +33,7 @@ def collect_counts(namespace: str, timeout: int) -> dict[str, int | None]:
         "statefulsets": ["statefulsets", "-A", "-l", WORKLOAD_SELECTOR],
         "cronjobs": ["cronjobs", "-A", "-l", WORKLOAD_SELECTOR],
         "daemonsets": ["daemonsets", "-A", "-l", WORKLOAD_SELECTOR],
-        "pods": ["pod", "-A", "-l", WORKLOAD_SELECTOR],
+        "pods": POD_QUERY,
         "replicasets": ["rs", "-A", "-l", WORKLOAD_SELECTOR],
         "controller_pods": ["pod", "-n", namespace, "-l", "control-plane=controller-manager"],
     }
@@ -52,9 +53,15 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--namespace", required=True)
     parser.add_argument("--timeout", type=int, default=90)
+    parser.add_argument("--pods-only", action="store_true")
     args = parser.parse_args()
 
-    for key, value in collect_counts(args.namespace, args.timeout).items():
+    counts = (
+        {"pods": kubectl_count(POD_QUERY, args.timeout)}
+        if args.pods_only
+        else collect_counts(args.namespace, args.timeout)
+    )
+    for key, value in counts.items():
         print(f"{key}={value if value is not None else 'unavailable'}")
     return 0
 
