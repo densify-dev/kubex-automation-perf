@@ -1,12 +1,8 @@
 name: stack-validation
 
 on:
-  push:
-    branches:
-      - main
+  workflow_call:
   workflow_dispatch:
-  schedule:
-    - cron: "0 3 * * 0"
 
 concurrency:
   group: stack-validation
