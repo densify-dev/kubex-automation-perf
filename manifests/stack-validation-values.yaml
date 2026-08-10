@@ -1,0 +1,7 @@
+prometheus:
+  extraScrapeConfigs: |
+    - job_name: stack-validation-fixture
+      scrape_interval: 5s
+      static_configs:
+        - targets:
+            - stack-validation-webserver.kubex.svc.cluster.local:8080

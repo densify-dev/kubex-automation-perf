@@ -105,6 +105,7 @@ jobs:
           helm template "${RELEASE_NAME}" kubex/kubex-automation-stack \
             --version "${KUBEX_VERSION}" \
             --namespace "${RELEASE_NAMESPACE}" \
+            -f manifests/stack-validation-values.yaml \
             --set stack.densify.createSecret=false \
             --set gpu-process-exporter.enabled=false \
             --set node-labeler.enabled=false \

@@ -23,6 +23,35 @@ STATE: dict[str, list[dict[str, object]]] = {
     "uploads": [],
 }
 
+METRICS = """\
+kubernetes_build_info{git_version="v1.30.0"} 1
+kube_node_info{node="validation-node",kernel_version="6.8.0",os_image="Linux",container_runtime_version="containerd://1.7"} 1
+kube_node_labels{node="validation-node",label_kubernetes_io_arch="amd64",label_kubernetes_io_os="linux"} 1
+kube_node_role{node="validation-node",role="worker"} 1
+kube_node_status_capacity{node="validation-node",resource="cpu",unit="core"} 4
+kube_node_status_capacity{node="validation-node",resource="memory",unit="byte"} 8589934592
+kube_node_status_capacity{node="validation-node",resource="pods",unit="integer"} 110
+kube_node_status_allocatable{node="validation-node",resource="cpu",unit="core"} 4
+kube_node_status_allocatable{node="validation-node",resource="memory",unit="byte"} 7516192768
+kube_node_status_allocatable{node="validation-node",resource="pods",unit="integer"} 110
+node_cpu_seconds_total{node="validation-node",instance="validation-node",cpu="0",mode="idle"} 1000
+node_memory_MemTotal_bytes{node="validation-node",instance="validation-node"} 8589934592
+kube_pod_info{namespace="deployment-probe",pod="validation-pod",node="validation-node",created_by_kind="ReplicaSet",created_by_name="controller-probe-validation"} 1
+kube_pod_owner{namespace="deployment-probe",pod="validation-pod",owner_kind="ReplicaSet",owner_name="controller-probe-validation",owner_is_controller="true"} 1
+kube_replicaset_owner{namespace="deployment-probe",replicaset="controller-probe-validation",owner_kind="Deployment",owner_name="controller-probe",owner_is_controller="true"} 1
+kube_pod_status_phase{namespace="deployment-probe",pod="validation-pod",phase="Running"} 1
+kube_pod_status_qos_class{namespace="deployment-probe",pod="validation-pod",qos_class="Burstable"} 1
+kube_pod_container_info{namespace="deployment-probe",pod="validation-pod",container="pause",node="validation-node",image="registry.k8s.io/pause:3.9",image_id="registry.k8s.io/pause@sha256:validation",container_id="containerd://validation"} 1
+kube_pod_container_resource_requests{namespace="deployment-probe",pod="validation-pod",container="pause",node="validation-node",resource="cpu",unit="core"} 0.1
+kube_pod_container_resource_requests{namespace="deployment-probe",pod="validation-pod",container="pause",node="validation-node",resource="memory",unit="byte"} 134217728
+kube_pod_container_resource_limits{namespace="deployment-probe",pod="validation-pod",container="pause",node="validation-node",resource="cpu",unit="core"} 0.2
+kube_pod_container_resource_limits{namespace="deployment-probe",pod="validation-pod",container="pause",node="validation-node",resource="memory",unit="byte"} 268435456
+container_cpu_usage_seconds_total{namespace="deployment-probe",pod="validation-pod",container="pause",node="validation-node",id="/kubepods/validation"} 10
+container_memory_usage_bytes{namespace="deployment-probe",pod="validation-pod",container="pause",node="validation-node",id="/kubepods/validation"} 134217728
+container_memory_working_set_bytes{namespace="deployment-probe",pod="validation-pod",container="pause",node="validation-node",id="/kubepods/validation"} 125829120
+container_spec_memory_limit_bytes{namespace="deployment-probe",pod="validation-pod",container="pause",node="validation-node",id="/kubepods/validation"} 268435456
+"""
+
 
 def _extract_archive_members(body: bytes) -> list[str]:
     members: list[str] = []
@@ -98,10 +127,21 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.end_headers()
 
+    def _send_text(self, status: HTTPStatus, payload: str) -> None:
+        body = payload.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "text/plain; version=0.0.4")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
         if path == "/healthz":
             self._send_empty(HTTPStatus.OK)
+            return
+        if path == "/metrics":
+            self._send_text(HTTPStatus.OK, METRICS)
             return
         if path == "/debug/state":
             with STATE_LOCK:
