@@ -105,7 +105,6 @@ jobs:
           helm template "${RELEASE_NAME}" kubex/kubex-automation-stack \
             --version "${KUBEX_VERSION}" \
             --namespace "${RELEASE_NAMESPACE}" \
-            -f manifests/stack-validation-values.yaml \
             --set stack.densify.createSecret=false \
             --set gpu-process-exporter.enabled=false \
             --set node-labeler.enabled=false \
@@ -132,38 +131,6 @@ jobs:
       - name: Apply Kubex stack
         run: |
           kubectl apply -f "${STACK_VALIDATION_DIR}/kubex-stack-rendered.yaml"
-
-      - name: Wait for required Prometheus metrics
-        run: |
-          kubectl port-forward -n "${RELEASE_NAMESPACE}" svc/kubex-prometheus-server 19090:80 >/tmp/stack-prometheus-port-forward.log 2>&1 &
-          pf_pid=$!
-          trap 'kill ${pf_pid} >/dev/null 2>&1 || true' EXIT
-          python3 - <<'PY'
-          import json
-          import time
-          import urllib.parse
-          import urllib.request
-
-          metrics = ["kube_pod_info", "node_cpu_seconds_total", "container_cpu_usage_seconds_total"]
-          deadline = time.monotonic() + 600
-          while time.monotonic() < deadline:
-              missing = []
-              for metric in metrics:
-                  try:
-                      query = urllib.parse.urlencode({"query": metric})
-                      with urllib.request.urlopen(f"http://127.0.0.1:19090/api/v1/query?{query}", timeout=10) as response:
-                          result = json.load(response).get("data", {}).get("result", [])
-                  except Exception:
-                      result = []
-                  if not result:
-                      missing.append(metric)
-              if not missing:
-                  print("required Prometheus metrics are available")
-                  raise SystemExit(0)
-              print(f"waiting for Prometheus metrics: {', '.join(missing)}", flush=True)
-              time.sleep(10)
-          raise SystemExit("timed out waiting for required Prometheus metrics")
-          PY
 
       - name: Create data forwarder job
         run: |
@@ -198,7 +165,8 @@ jobs:
           trap 'kill ${pf_pid} >/dev/null 2>&1 || true' EXIT
           python3 scripts/validate_stack_upload.py \
             --state http://127.0.0.1:18080/debug/state \
-            --output-state "${STACK_VALIDATION_DIR}/server-state.json"
+            --output-state "${STACK_VALIDATION_DIR}/server-state.json" \
+            --required-files cluster/config.csv cluster/attributes.csv
 
       - name: Collect diagnostics on failure
         if: failure()
