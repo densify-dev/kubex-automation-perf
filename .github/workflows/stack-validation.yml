@@ -82,10 +82,6 @@ jobs:
           kubectl -n "${RELEASE_NAMESPACE}" create configmap "${STACK_SERVER_SCRIPT_CONFIGMAP}" \
             --from-file=fake_stack_webserver.py=scripts/fake_stack_webserver.py \
             --dry-run=client -o yaml | kubectl apply -f -
-          kubectl -n "${RELEASE_NAMESPACE}" create secret generic densify-api-secret \
-            --from-literal=username=stack-validation \
-            --from-literal=epassword=stack-validation \
-            --dry-run=client -o yaml | kubectl apply -f -
           kubectl apply -f manifests/stack-validation-webserver.yaml
 
       - name: Wait for fake server
@@ -122,6 +118,9 @@ jobs:
             --set container-optimization-data-forwarder.config.forwarder.densify.url.scheme=http \
             --set container-optimization-data-forwarder.config.forwarder.densify.url.host="${STACK_HOST}" \
             --set container-optimization-data-forwarder.config.forwarder.densify.url.port="${STACK_PORT}" \
+            --set container-optimization-data-forwarder.config.forwarder.densify.url.UserSecretName=null \
+            --set-string container-optimization-data-forwarder.config.forwarder.densify.url.username=stack-validation \
+            --set-string container-optimization-data-forwarder.config.forwarder.densify.url.password=stack-validation \
             --set container-optimization-data-forwarder.config.forwarder.densify.endpoint="${STACK_ENDPOINT}" \
             --set container-optimization-data-forwarder.config.clusters[0].name=stack-validation \
             --set container-optimization-data-forwarder.job.checkPrometheusReady=true \
@@ -136,11 +135,21 @@ jobs:
       - name: Wait for data forwarder job
         run: |
           job_name="${RELEASE_NAME}-kubex-stack"
-          kubectl wait --for=condition=Ready pod \
-            -l "job-name=${job_name}" \
-            -n "${RELEASE_NAMESPACE}" \
-            --timeout=15m
-          kubectl wait --for=condition=complete job/"${job_name}" -n "${RELEASE_NAMESPACE}" --timeout=15m
+          for _ in $(seq 1 180); do
+            status=$(kubectl get job "${job_name}" -n "${RELEASE_NAMESPACE}" -o json)
+            complete=$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("status", {}).get("succeeded", 0))' <<<"${status}")
+            failed=$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("status", {}).get("failed", 0))' <<<"${status}")
+            if [ "${complete}" -gt 0 ]; then
+              exit 0
+            fi
+            if [ "${failed}" -ge 5 ]; then
+              kubectl logs -n "${RELEASE_NAMESPACE}" job/"${job_name}" -c kubex-stack || true
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "timed out waiting for ${job_name}" >&2
+          exit 1
 
       - name: Capture server state
         run: |
