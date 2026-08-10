@@ -143,7 +143,10 @@ class Handler(BaseHTTPRequestHandler):
                 },
             )
             return
-        self._send_json(HTTPStatus.OK, {"status": "ok", "path": path, "bytes": len(body)})
+        self._send_json(
+            HTTPStatus.OK,
+            {"status": int(HTTPStatus.OK), "path": path, "bytes": len(body)},
+        )
 
 
 def main() -> int:
