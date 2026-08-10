@@ -152,11 +152,14 @@ jobs:
           exit 1
 
       - name: Capture server state
+        if: always()
         run: |
           kubectl port-forward -n "${RELEASE_NAMESPACE}" svc/"${STACK_SERVER_NAME}" 18080:8080 >/tmp/stack-validation-port-forward.log 2>&1 &
           pf_pid=$!
           trap 'kill ${pf_pid} >/dev/null 2>&1 || true' EXIT
-          python3 scripts/validate_stack_upload.py --state http://127.0.0.1:18080/debug/state
+          python3 scripts/validate_stack_upload.py \
+            --state http://127.0.0.1:18080/debug/state \
+            --output-state "${STACK_VALIDATION_DIR}/server-state.json"
 
       - name: Collect diagnostics on failure
         if: failure()

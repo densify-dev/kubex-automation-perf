@@ -96,6 +96,28 @@ class StackValidationHelpersTest(unittest.TestCase):
             with patch("sys.argv", ["validate_stack_upload.py", "--state", str(state)]):
                 self.assertEqual(validate_main(), 0)
 
+    def test_validate_upload_writes_captured_state(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = root / "state.json"
+            output = root / "captured.json"
+            state.write_text(json.dumps({"uploads": []}), encoding="utf-8")
+
+            with patch(
+                "sys.argv",
+                [
+                    "validate_stack_upload.py",
+                    "--state",
+                    str(state),
+                    "--output-state",
+                    str(output),
+                ],
+            ):
+                with self.assertRaisesRegex(SystemExit, "no uploads"):
+                    validate_main()
+
+            self.assertEqual(json.loads(output.read_text(encoding="utf-8")), {"uploads": []})
+
 
 if __name__ == "__main__":
     unittest.main()

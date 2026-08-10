@@ -107,11 +107,14 @@ def _missing_required(observed: list[str], required: list[str]) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--state", required=True, help="Path or URL to the captured server state")
+    parser.add_argument("--output-state")
     parser.add_argument("--required-files", nargs="*", default=DEFAULT_REQUIRED_FILES)
     parser.add_argument("--timeout", type=int, default=300)
     args = parser.parse_args()
 
     state = _load_state(args.state, args.timeout)
+    if args.output_state:
+        Path(args.output_state).write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     uploads = state.get("uploads", [])
     if not isinstance(uploads, list) or not uploads:
         raise SystemExit("no uploads were captured by the fake stack server")

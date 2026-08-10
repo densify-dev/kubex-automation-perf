@@ -133,6 +133,16 @@ class Handler(BaseHTTPRequestHandler):
 
         body = self._read_body()
         _record_request(self, body)
+        if path.endswith("/authorize"):
+            self._send_json(
+                HTTPStatus.OK,
+                {
+                    "apiToken": "stack-validation-token",
+                    "expires": int((time() + 300) * 1000),
+                    "status": int(HTTPStatus.OK),
+                },
+            )
+            return
         self._send_json(HTTPStatus.OK, {"status": "ok", "path": path, "bytes": len(body)})
 
 
