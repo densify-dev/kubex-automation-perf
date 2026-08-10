@@ -1,17 +1,32 @@
 import base64
+import http.client
 import io
 import json
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from scripts.inject_host_aliases import inject
-from scripts.validate_stack_upload import main as validate_main
+from scripts.validate_stack_upload import _load_state, main as validate_main
 
 
 class StackValidationHelpersTest(unittest.TestCase):
+    def test_load_state_retries_disconnected_port_forward(self) -> None:
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = b'{"uploads": []}'
+        with (
+            patch(
+                "scripts.validate_stack_upload.urllib.request.urlopen",
+                side_effect=[http.client.RemoteDisconnected(), response],
+            ) as urlopen,
+            patch("scripts.validate_stack_upload.time.sleep"),
+        ):
+            self.assertEqual(_load_state("http://127.0.0.1/state", 10), {"uploads": []})
+
+        self.assertEqual(urlopen.call_count, 2)
+
     def test_inject_host_aliases_into_job_and_cronjob(self) -> None:
         rendered = "\n".join(
             [

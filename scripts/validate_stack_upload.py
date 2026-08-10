@@ -5,13 +5,14 @@ from __future__ import annotations
 
 import argparse
 import base64
+import http.client
 import io
 import json
 import re
 import tarfile
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 import zipfile
 from pathlib import Path
 
@@ -34,7 +35,13 @@ def _load_state(source: str, timeout: int) -> dict[str, object]:
             try:
                 with urllib.request.urlopen(source, timeout=30) as response:
                     return json.loads(response.read().decode("utf-8"))
-            except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+            except (
+                urllib.error.URLError,
+                http.client.RemoteDisconnected,
+                ConnectionError,
+                TimeoutError,
+                json.JSONDecodeError,
+            ) as exc:
                 last_error = str(exc)
                 time.sleep(2)
         raise SystemExit(f"timed out waiting for state endpoint: {last_error or 'unknown error'}")

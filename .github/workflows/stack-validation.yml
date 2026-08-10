@@ -69,18 +69,22 @@ jobs:
           kwokctl get kubeconfig --name "${CLUSTER_NAME}" > kwok.kubeconfig
           echo "KUBECONFIG=${PWD}/kwok.kubeconfig" >> "$GITHUB_ENV"
 
-      - name: Ramp KWOK node and uncordon control-plane
+      - name: Uncordon real control-plane
         run: |
-          kwokctl scale node --name "${CLUSTER_NAME}" --replicas 1
           kubectl --kubeconfig kwok.kubeconfig wait --for=condition=Ready node --all --timeout=10m
           control_plane_nodes=$(python3 -c 'import json, subprocess; data=json.loads(subprocess.check_output(["kubectl", "get", "nodes", "-o", "json"], text=True)); names=[item["metadata"]["name"] for item in data.get("items", []) if "node-role.kubernetes.io/control-plane" in item.get("metadata", {}).get("labels", {}) or "node-role.kubernetes.io/master" in item.get("metadata", {}).get("labels", {})]; print("\n".join(names))')
           printf '%s\n' "$control_plane_nodes" | xargs -r kubectl uncordon
+          printf '%s\n' "$control_plane_nodes" | xargs -r kubectl get node -o wide
 
       - name: Create namespaces and fake server config
         run: |
           kubectl create namespace "${RELEASE_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
           kubectl -n "${RELEASE_NAMESPACE}" create configmap "${STACK_SERVER_SCRIPT_CONFIGMAP}" \
             --from-file=fake_stack_webserver.py=scripts/fake_stack_webserver.py \
+            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n "${RELEASE_NAMESPACE}" create secret generic densify-api-secret \
+            --from-literal=username=stack-validation \
+            --from-literal=epassword=stack-validation \
             --dry-run=client -o yaml | kubectl apply -f -
           kubectl apply -f manifests/stack-validation-webserver.yaml
 
@@ -132,6 +136,10 @@ jobs:
       - name: Wait for data forwarder job
         run: |
           job_name="${RELEASE_NAME}-kubex-stack"
+          kubectl wait --for=condition=Ready pod \
+            -l "job-name=${job_name}" \
+            -n "${RELEASE_NAMESPACE}" \
+            --timeout=15m
           kubectl wait --for=condition=complete job/"${job_name}" -n "${RELEASE_NAMESPACE}" --timeout=15m
 
       - name: Capture server state
@@ -147,7 +155,11 @@ jobs:
           mkdir -p "${STACK_VALIDATION_DIR}/diagnostics"
           kubectl get pod -n "${RELEASE_NAMESPACE}" -o wide > "${STACK_VALIDATION_DIR}/diagnostics/pods.txt" || true
           kubectl describe job "${RELEASE_NAME}-kubex-stack" -n "${RELEASE_NAMESPACE}" > "${STACK_VALIDATION_DIR}/diagnostics/job.txt" || true
-          kubectl logs -n "${RELEASE_NAMESPACE}" job/"${RELEASE_NAME}-kubex-stack" > "${STACK_VALIDATION_DIR}/diagnostics/job.log" || true
+          kubectl logs -n "${RELEASE_NAMESPACE}" job/"${RELEASE_NAME}-kubex-stack" -c check-prometheus-ready > "${STACK_VALIDATION_DIR}/diagnostics/job-init.log" || true
+          kubectl logs -n "${RELEASE_NAMESPACE}" job/"${RELEASE_NAME}-kubex-stack" -c kubex-stack > "${STACK_VALIDATION_DIR}/diagnostics/job.log" || true
+          kubectl logs -n "${RELEASE_NAMESPACE}" deployment/"${STACK_SERVER_NAME}" > "${STACK_VALIDATION_DIR}/diagnostics/webserver.log" || true
+          kubectl logs -n "${RELEASE_NAMESPACE}" deployment/kubex-prometheus-server --all-containers=true > "${STACK_VALIDATION_DIR}/diagnostics/prometheus.log" || true
+          kubectl describe pod -n "${RELEASE_NAMESPACE}" -l "job-name=${RELEASE_NAME}-kubex-stack" > "${STACK_VALIDATION_DIR}/diagnostics/job-pod.txt" || true
           kubectl get events -A --sort-by=.lastTimestamp > "${STACK_VALIDATION_DIR}/diagnostics/events.txt" || true
 
       - name: Upload artifacts
