@@ -20,7 +20,7 @@ class StackValidationHelpersTest(unittest.TestCase):
             state = root / "state.json"
             csv_dir = root / "captured"
             state.write_text(json.dumps({"uploads": [{}, {}]}), encoding="utf-8")
-            path = csv_dir / "cluster" / "config.csv"
+            path = csv_dir / "data" / "stack-validation" / "cluster" / "config.csv"
             path.parent.mkdir(parents=True)
             path.write_text("name,value\nfirst,1\nsecond,2\n", encoding="utf-8")
 

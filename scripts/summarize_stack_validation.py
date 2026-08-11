@@ -19,6 +19,14 @@ REQUIRED_FILES = [
 ]
 
 
+def _find_csv(csv_dir: Path, relative: str) -> Path | None:
+    direct = csv_dir / relative
+    if direct.exists():
+        return direct
+    matches = [path for path in csv_dir.rglob(Path(relative).name) if str(path).replace("\\", "/").endswith(relative)]
+    return matches[0] if matches else None
+
+
 def summarize(state_path: Path, csv_dir: Path, status: str) -> str:
     uploads = 0
     if state_path.exists():
@@ -39,9 +47,9 @@ def summarize(state_path: Path, csv_dir: Path, status: str) -> str:
         "| --- | ---: |",
     ]
     for relative in REQUIRED_FILES:
-        path = csv_dir / relative
+        path = _find_csv(csv_dir, relative)
         rows: int | str = "missing"
-        if path.exists():
+        if path is not None:
             with path.open(newline="", encoding="utf-8", errors="replace") as handle:
                 rows = max(sum(1 for row in csv.reader(handle) if any(cell.strip() for cell in row)) - 1, 0)
         lines.append(f"| `{relative}` | {rows} |")
