@@ -122,6 +122,9 @@ jobs:
             --set-string container-optimization-data-forwarder.config.forwarder.densify.url.username=stack-validation \
             --set-string container-optimization-data-forwarder.config.forwarder.densify.url.password=stack-validation \
             --set container-optimization-data-forwarder.config.forwarder.densify.endpoint="${STACK_ENDPOINT}" \
+            --set container-optimization-data-forwarder.config.collection.interval=minutes \
+            --set container-optimization-data-forwarder.config.collection.interval_size=1 \
+            --set container-optimization-data-forwarder.config.collection.sample_rate=1 \
             --set container-optimization-data-forwarder.config.clusters[0].name=stack-validation \
             --set container-optimization-data-forwarder.job.enable=false \
             --set container-optimization-data-forwarder.cronJob.schedule="0 0 1 1 *" \
@@ -185,6 +188,9 @@ jobs:
                   pass
               if not missing:
                   print("required Prometheus metrics are available")
+                  # The collector rounds interval boundaries down. Ensure the
+                  # completed one-minute window contains exporter samples.
+                  time.sleep(70)
                   raise SystemExit(0)
               print(f"waiting for Prometheus metrics: {', '.join(missing)}", flush=True)
               time.sleep(10)
