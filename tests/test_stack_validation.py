@@ -9,10 +9,28 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from scripts.inject_host_aliases import inject
+from scripts.summarize_stack_validation import summarize
 from scripts.validate_stack_upload import _load_state, main as validate_main
 
 
 class StackValidationHelpersTest(unittest.TestCase):
+    def test_summary_reports_uploads_rows_and_missing_files(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = root / "state.json"
+            csv_dir = root / "captured"
+            state.write_text(json.dumps({"uploads": [{}, {}]}), encoding="utf-8")
+            path = csv_dir / "cluster" / "config.csv"
+            path.parent.mkdir(parents=True)
+            path.write_text("name,value\nfirst,1\nsecond,2\n", encoding="utf-8")
+
+            result = summarize(state, csv_dir, "success")
+
+            self.assertIn("**Status:** success", result)
+            self.assertIn("**Captured uploads:** 2", result)
+            self.assertIn("| `cluster/config.csv` | 2 |", result)
+            self.assertIn("| `container/config.csv` | missing |", result)
+
     def test_load_state_retries_disconnected_port_forward(self) -> None:
         response = MagicMock()
         response.__enter__.return_value.read.return_value = b'{"uploads": []}'

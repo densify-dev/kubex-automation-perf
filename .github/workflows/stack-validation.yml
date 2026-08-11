@@ -251,6 +251,18 @@ jobs:
           kubectl describe pod -n "${RELEASE_NAMESPACE}" -l "job-name=${RELEASE_NAME}-kubex-stack-validation" > "${STACK_VALIDATION_DIR}/diagnostics/job-pod.txt" || true
           kubectl get events -A --sort-by=.lastTimestamp > "${STACK_VALIDATION_DIR}/diagnostics/events.txt" || true
 
+      - name: Summarize results
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          python3 scripts/summarize_stack_validation.py \
+            --state "${STACK_VALIDATION_DIR}/server-state.json" \
+            --csv-dir "${STACK_VALIDATION_DIR}/captured-csv" \
+            --status "${JOB_STATUS}" \
+            --output "${STACK_VALIDATION_DIR}/summary.md"
+          cat "${STACK_VALIDATION_DIR}/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
