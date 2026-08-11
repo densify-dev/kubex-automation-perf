@@ -21,6 +21,8 @@ jobs:
       RELEASE_NAMESPACE: kubex
       KUBEX_VERSION: 1.0.18
       KWOK_VERSION: v0.5.1
+      KWOK_NODES: "100"
+      STACK_SOAK_MINUTES: "30"
       STACK_HOST: fake.kubex.ai
       STACK_PORT: "8080"
       STACK_ENDPOINT: /upload
@@ -88,11 +90,6 @@ jobs:
         run: |
           kubectl rollout status deployment/${STACK_SERVER_NAME} -n "${RELEASE_NAMESPACE}" --timeout=5m
 
-      - name: Create probe workload
-        run: |
-          kubectl apply -f manifests/stack-validation-workload.yaml
-          kubectl wait --for=condition=Available deployment/resource-fixture -n stack-validation-workload --timeout=5m
-
       - name: Resolve fake server cluster IP
         run: |
           server_ip=$(kubectl -n "${RELEASE_NAMESPACE}" get svc "${STACK_SERVER_NAME}" -o jsonpath='{.spec.clusterIP}')
@@ -124,6 +121,7 @@ jobs:
             --set container-optimization-data-forwarder.config.forwarder.densify.endpoint="${STACK_ENDPOINT}" \
             --set container-optimization-data-forwarder.config.collection.interval=minutes \
             --set container-optimization-data-forwarder.config.collection.interval_size=1 \
+            --set container-optimization-data-forwarder.config.collection.history=30 \
             --set container-optimization-data-forwarder.config.collection.sample_rate=1 \
             --set container-optimization-data-forwarder.config.clusters[0].name=stack-validation \
             --set container-optimization-data-forwarder.job.enable=false \
@@ -195,6 +193,56 @@ jobs:
               print(f"waiting for Prometheus metrics: {', '.join(missing)}", flush=True)
               time.sleep(10)
           raise SystemExit("timed out waiting for required Prometheus metrics")
+          PY
+
+      - name: Create real-node probe workload
+        run: |
+          kubectl apply -f manifests/stack-validation-workload.yaml
+          kubectl wait --for=condition=Available deployment/resource-fixture -n stack-validation-workload --timeout=5m
+
+      - name: Scale KWOK nodes
+        run: |
+          kwokctl scale node --name "${CLUSTER_NAME}" --replicas "${KWOK_NODES}"
+          kubectl wait --for=condition=Ready node --all --timeout=10m
+          kwok_nodes=$(kubectl get nodes -l type=kwok --no-headers | wc -l)
+          if [ "${kwok_nodes}" -lt "${KWOK_NODES}" ]; then
+            echo "expected at least ${KWOK_NODES} KWOK nodes, found ${kwok_nodes}" >&2
+            kubectl get nodes --show-labels
+            exit 1
+          fi
+          kubectl get nodes -o wide
+
+      - name: Apply mixed stack workloads
+        run: |
+          python3 scripts/build_stack_validation_workloads.py \
+            --output "${STACK_VALIDATION_DIR}/mixed-workloads.yaml"
+          kubectl apply -f "${STACK_VALIDATION_DIR}/mixed-workloads.yaml"
+
+      - name: Wait for mixed workload ramp
+        run: |
+          for _ in $(seq 1 180); do
+            objects=$(kubectl get deployment.apps,statefulset.apps,cronjob.batch,daemonset.apps -n stack-validation-workload -l app.kubernetes.io/name=stack-validation-mixed --no-headers 2>/dev/null | wc -l)
+            pods=$(kubectl get pods -n stack-validation-workload -l app.kubernetes.io/name=stack-validation-mixed --no-headers 2>/dev/null | wc -l)
+            echo "workload objects=${objects}/61 pods=${pods}/150"
+            if [ "${objects}" -ge 61 ] && [ "${pods}" -ge 150 ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          kubectl get deployment,statefulset,cronjob,daemonset,pod -n stack-validation-workload -o wide
+          exit 1
+
+      - name: Soak after node ramp
+        run: |
+          python3 - "${STACK_SOAK_MINUTES}" <<'PY'
+          import sys
+          import time
+          from datetime import datetime, timezone
+
+          for minute in range(int(sys.argv[1])):
+              stamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+              print(f'[{stamp}] stack validation soak {minute + 1}/{sys.argv[1]}', flush=True)
+              time.sleep(60)
           PY
 
       - name: Create data forwarder job
