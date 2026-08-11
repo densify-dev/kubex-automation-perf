@@ -71,6 +71,33 @@ def _extract_members(body: bytes) -> list[str]:
     return []
 
 
+def _write_csv_files(state: dict[str, object], output_dir: Path) -> int:
+    uploads = state.get("uploads", [])
+    if not isinstance(uploads, list):
+        return 0
+
+    written = 0
+    for request in uploads:
+        if not isinstance(request, dict):
+            continue
+        body = _decode_body(request)
+        if not body:
+            continue
+        try:
+            with zipfile.ZipFile(io.BytesIO(body)) as archive:
+                for name in archive.namelist():
+                    relative = Path(name)
+                    if not name.endswith(".csv") or relative.is_absolute() or ".." in relative.parts:
+                        continue
+                    destination = output_dir / relative
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    destination.write_bytes(archive.read(name))
+                    written += 1
+        except zipfile.BadZipFile:
+            continue
+    return written
+
+
 def _observed_paths(state: dict[str, object]) -> list[str]:
     requests = state.get("uploads", [])
     if not isinstance(requests, list):
@@ -108,6 +135,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--state", required=True, help="Path or URL to the captured server state")
     parser.add_argument("--output-state")
+    parser.add_argument("--output-dir")
     parser.add_argument("--required-files", nargs="*", default=DEFAULT_REQUIRED_FILES)
     parser.add_argument("--timeout", type=int, default=300)
     args = parser.parse_args()
@@ -115,6 +143,7 @@ def main() -> int:
     state = _load_state(args.state, args.timeout)
     if args.output_state:
         Path(args.output_state).write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    written_files = _write_csv_files(state, Path(args.output_dir)) if args.output_dir else 0
     uploads = state.get("uploads", [])
     if not isinstance(uploads, list) or not uploads:
         raise SystemExit("no uploads were captured by the fake stack server")
@@ -126,6 +155,8 @@ def main() -> int:
 
     print(f"captured {len(uploads)} upload request(s)")
     print(f"observed {len(set(observed))} archive member(s) or CSV path(s)")
+    if args.output_dir:
+        print(f"wrote {written_files} captured CSV file(s) to {args.output_dir}")
     return 0
 
 

@@ -166,6 +166,7 @@ jobs:
           python3 scripts/validate_stack_upload.py \
             --state http://127.0.0.1:18080/debug/state \
             --output-state "${STACK_VALIDATION_DIR}/server-state.json" \
+            --output-dir "${STACK_VALIDATION_DIR}/captured-csv" \
             --required-files cluster/config.csv cluster/attributes.csv
 
       - name: Collect diagnostics on failure

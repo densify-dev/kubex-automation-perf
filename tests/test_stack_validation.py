@@ -67,6 +67,7 @@ class StackValidationHelpersTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             state = root / "state.json"
+            output = root / "captured"
 
             buffer = io.BytesIO()
             with zipfile.ZipFile(buffer, mode="w") as archive:
@@ -93,8 +94,26 @@ class StackValidationHelpersTest(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            with patch("sys.argv", ["validate_stack_upload.py", "--state", str(state)]):
+            with patch(
+                "sys.argv",
+                [
+                    "validate_stack_upload.py",
+                    "--state",
+                    str(state),
+                    "--output-dir",
+                    str(output),
+                ],
+            ):
                 self.assertEqual(validate_main(), 0)
+
+            self.assertEqual(
+                (output / "cluster" / "config.csv").read_text(encoding="utf-8"),
+                "name,value\n",
+            )
+            self.assertEqual(
+                (output / "container" / "attributes.csv").read_text(encoding="utf-8"),
+                "name,value\n",
+            )
 
     def test_validate_upload_writes_captured_state(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
