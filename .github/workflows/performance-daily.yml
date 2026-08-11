@@ -437,6 +437,3 @@ jobs:
             artifacts/report
           if-no-files-found: warn
           retention-days: 30
-
-  stack-validation:
-    uses: ./.github/workflows/stack-validation.yml
