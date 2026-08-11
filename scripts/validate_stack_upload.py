@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import csv
 import http.client
 import io
 import json
@@ -98,6 +99,29 @@ def _write_csv_files(state: dict[str, object], output_dir: Path) -> int:
     return written
 
 
+def _csv_data_counts(state: dict[str, object]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    uploads = state.get("uploads", [])
+    if not isinstance(uploads, list):
+        return counts
+    for request in uploads:
+        if not isinstance(request, dict):
+            continue
+        body = _decode_body(request)
+        if not body:
+            continue
+        try:
+            with zipfile.ZipFile(io.BytesIO(body)) as archive:
+                for name in archive.namelist():
+                    if not name.endswith(".csv"):
+                        continue
+                    text = archive.read(name).decode("utf-8", errors="replace")
+                    counts[name.replace("\\", "/")] = sum(1 for row in csv.reader(io.StringIO(text)) if any(cell.strip() for cell in row)) - 1
+        except zipfile.BadZipFile:
+            continue
+    return counts
+
+
 def _observed_paths(state: dict[str, object]) -> list[str]:
     requests = state.get("uploads", [])
     if not isinstance(requests, list):
@@ -136,6 +160,7 @@ def main() -> int:
     parser.add_argument("--state", required=True, help="Path or URL to the captured server state")
     parser.add_argument("--output-state")
     parser.add_argument("--output-dir")
+    parser.add_argument("--require-data", action="store_true")
     parser.add_argument("--required-files", nargs="*", default=DEFAULT_REQUIRED_FILES)
     parser.add_argument("--timeout", type=int, default=300)
     args = parser.parse_args()
@@ -152,6 +177,15 @@ def main() -> int:
     missing = _missing_required(observed, list(args.required_files))
     if missing:
         raise SystemExit(f"missing expected CSV files: {', '.join(missing)}")
+    if args.require_data:
+        counts = _csv_data_counts(state)
+        empty = [
+            target
+            for target in args.required_files
+            if not any(path.endswith(target) and count > 0 for path, count in counts.items())
+        ]
+        if empty:
+            raise SystemExit(f"expected CSV files have no data rows: {', '.join(empty)}")
 
     print(f"captured {len(uploads)} upload request(s)")
     print(f"observed {len(set(observed))} archive member(s) or CSV path(s)")

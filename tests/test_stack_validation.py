@@ -79,7 +79,7 @@ class StackValidationHelpersTest(unittest.TestCase):
                     "container/config.csv",
                     "container/attributes.csv",
                 ]:
-                    archive.writestr(path, "name,value\n")
+                    archive.writestr(path, "name,value\nfixture,1\n")
 
             state.write_text(
                 json.dumps(
@@ -102,17 +102,18 @@ class StackValidationHelpersTest(unittest.TestCase):
                     str(state),
                     "--output-dir",
                     str(output),
+                    "--require-data",
                 ],
             ):
                 self.assertEqual(validate_main(), 0)
 
             self.assertEqual(
                 (output / "cluster" / "config.csv").read_text(encoding="utf-8"),
-                "name,value\n",
+                "name,value\nfixture,1\n",
             )
             self.assertEqual(
                 (output / "container" / "attributes.csv").read_text(encoding="utf-8"),
-                "name,value\n",
+                "name,value\nfixture,1\n",
             )
 
     def test_validate_upload_writes_captured_state(self) -> None:
