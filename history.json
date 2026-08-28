@@ -1,5 +1,98 @@
 [
   {
+    "controller_install_order": "after-workload-ramp",
+    "controller_max_cpu_mcores": 1000.0,
+    "controller_max_memory_mib": 2062.0,
+    "data_issues": [
+      "3 metrics scrape(s) failed"
+    ],
+    "data_status": "degraded",
+    "deployments_observed": 11500,
+    "generated_at": "2026-08-28T06:03:47.540048+00:00",
+    "key_metrics": {
+      "controller_max_cpu_mcores": 1000.0,
+      "controller_max_memory_mib": 2062.0,
+      "empty_metrics_snapshots": 3,
+      "expected_live_pods_from_daemonsets": 10000,
+      "expected_steady_state_live_pods": 33000,
+      "final_pods_observed": 32748,
+      "go_goroutines": 92.0,
+      "latest_live_pods_observed": 32748,
+      "live_count_snapshots": 10,
+      "live_pod_delta_vs_target": -252,
+      "metrics_capture_issue": "3 metrics scrape(s) failed",
+      "metrics_snapshots": 41,
+      "pod_bearing_workload_objects_observed": 25010,
+      "process_cpu_seconds_total": 2.02,
+      "process_resident_memory_bytes": 635199488.0,
+      "top_snapshots": 41,
+      "valid_metrics_snapshots": 38,
+      "valid_top_snapshots": 33,
+      "workload_objects_observed": 25010,
+      "workload_pods_observed": 32748
+    },
+    "live_counts": [
+      {
+        "pods": 33000,
+        "timestamp": "20260828T053616Z"
+      },
+      {
+        "pods": 33000,
+        "timestamp": "20260828T053816Z"
+      },
+      {
+        "pods": 33000,
+        "timestamp": "20260828T054017Z"
+      },
+      {
+        "pods": 33000,
+        "timestamp": "20260828T054356Z"
+      },
+      {
+        "pods": 32999,
+        "timestamp": "20260828T054615Z"
+      },
+      {
+        "pods": 32930,
+        "timestamp": "20260828T054827Z"
+      },
+      {
+        "pods": 32876,
+        "timestamp": "20260828T055030Z"
+      },
+      {
+        "pods": 32802,
+        "timestamp": "20260828T055244Z"
+      },
+      {
+        "pods": 32757,
+        "timestamp": "20260828T055447Z"
+      },
+      {
+        "pods": 32748,
+        "timestamp": "20260828T055704Z"
+      }
+    ],
+    "metrics": {
+      "go_goroutines": 92.0,
+      "process_cpu_seconds_total": 2.02,
+      "process_resident_memory_bytes": 635199488.0
+    },
+    "metrics_snapshots": 41,
+    "nodes": 1000,
+    "pods_observed": 32748,
+    "ref_name": "main",
+    "run_attempt": 1,
+    "run_id": 33143024411,
+    "run_key": "33143024411:after-workload-ramp",
+    "run_number": 151,
+    "run_url": "https://github.com/densify-dev/kubex-automation-perf/actions/runs/33143024411",
+    "sha": "e9a1d7022a72cdf3f207e2188351252606484169",
+    "status": "success",
+    "top_snapshots": 41,
+    "workloads": 25010
+  },
+  {
     "controller_install_order": "before-workload-ramp",
     "controller_max_cpu_mcores": 993.0,
     "controller_max_memory_mib": 1750.0,
@@ -17100,37 +17193,6 @@
     "sha": "95b94daa73b8a2dbbfec8e0a537951078095cf2f",
     "status": "success",
     "top_snapshots": 4,
-    "workloads": 32010
-  },
-  {
-    "controller_install_order": "after-workload-ramp",
-    "controller_max_cpu_mcores": 12.0,
-    "controller_max_memory_mib": 1215.0,
-    "deployments_observed": 0,
-    "generated_at": "2026-06-17T04:54:05.928716+00:00",
-    "live_counts": [
-      {
-        "cronjobs": 2000,
-        "daemonsets": 10,
-        "deployments": 15000,
-        "pods": 19500,
-        "statefulsets": 15000,
-        "timestamp": "20260617T042610Z"
-      }
-    ],
-    "metrics": {},
-    "metrics_snapshots": 1,
-    "nodes": 1000,
-    "pods_observed": 0,
-    "ref_name": "main",
-    "run_attempt": 1,
-    "run_id": 27663521341,
-    "run_key": "27663521341:after-workload-ramp",
-    "run_number": 50,
-    "run_url": "https://github.com/densify-dev/kubex-automation-perf/actions/runs/27663521341",
-    "sha": "95b94daa73b8a2dbbfec8e0a537951078095cf2f",
-    "status": "success",
-    "top_snapshots": 1,
     "workloads": 32010
   }
 ]
