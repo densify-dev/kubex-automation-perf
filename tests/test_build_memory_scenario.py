@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.build_memory_scenario import compaction_supported, crd_version_for, main
+from scripts.build_memory_scenario import compaction_supported, crd_version_for, main, render_cronjob_fixture
 
 
 class MemoryScenarioTest(unittest.TestCase):
@@ -33,3 +33,10 @@ class MemoryScenarioTest(unittest.TestCase):
             finally:
                 sys.argv = old
             self.assertTrue((Path(directory) / "compaction-policy.yaml").exists())
+
+    def test_cronjob_fixture_is_suspended_and_payload_is_in_spec(self):
+        fixture = render_cronjob_fixture("perf-0001", 1, "x" * 16)
+        self.assertIn("suspend: true", fixture)
+        self.assertIn("perf.kubex.ai/fixture: cronjob-memory", fixture)
+        self.assertIn("value: xxxxxxxxxxxxxxxx", fixture)
+        self.assertNotIn("app.kubernetes.io/name: kwok-perf", fixture)

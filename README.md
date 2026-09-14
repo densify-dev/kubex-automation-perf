@@ -73,6 +73,11 @@ include the raw time series, post-GC summaries, and an adjacent-release table.
 The default fixture adds 10,000 ConfigMaps with 4 KiB payloads to expose
 resource-cache memory differences; both values are workflow inputs.
 
+For the isolated CronJob experiment, set `configmaps=0`,
+`cronjob_fixtures=10000`, and `cronjob_payload_size=4096`. The generated
+CronJobs are suspended and use a distinct fixture label, so they do not create
+Jobs or Pods and are not selected by the existing StaticPolicy.
+
 Generate a small local scenario with:
 
 ```bash

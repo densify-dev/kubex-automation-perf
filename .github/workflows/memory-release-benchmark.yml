@@ -27,6 +27,14 @@ on:
         description: "Payload bytes per ConfigMap"
         required: true
         default: "4096"
+      cronjob_fixtures:
+        description: "Number of suspended CronJob fixtures"
+        required: true
+        default: "0"
+      cronjob_payload_size:
+        description: "Payload bytes in each CronJob spec"
+        required: true
+        default: "4096"
 
 concurrency:
   group: memory-release-benchmark
@@ -86,6 +94,8 @@ jobs:
       SOAK_MINUTES: ${{ matrix.mode == 'active' && (inputs.active_soak_minutes || '15') || (inputs.soak_minutes || '15') }}
       CONFIGMAPS: ${{ inputs.configmaps || '10000' }}
       CONFIGMAP_SIZE: ${{ inputs.configmap_size || '4096' }}
+      CRONJOB_FIXTURES: ${{ inputs.cronjob_fixtures || '0' }}
+      CRONJOB_PAYLOAD_SIZE: ${{ inputs.cronjob_payload_size || '4096' }}
       CLUSTER_NAME: memory-${{ matrix.mode }}-${{ matrix.release }}
       RELEASE_NAME: kubex-automation-engine
       RELEASE_NAMESPACE: kubex
@@ -151,6 +161,8 @@ jobs:
             --daemonsets "${daemonsets}" \
             --configmaps "${CONFIGMAPS}" \
             --configmap-size "${CONFIGMAP_SIZE}" \
+            --cronjob-fixtures "${CRONJOB_FIXTURES}" \
+            --cronjob-payload-size "${CRONJOB_PAYLOAD_SIZE}" \
             --cluster-name "${CLUSTER_NAME}" \
             --kubex-host "${KUBEX_URL_HOST}" \
             --kubex-cluster-name "${KUBEX_CLUSTER_NAME}"
@@ -173,7 +185,9 @@ jobs:
           python3 scripts/kwok_orchestrate.py wait-controller-health --namespace "${RELEASE_NAMESPACE}" --release "${RELEASE_NAME}" --timeout 20m
 
       - name: Mark controller ready
-        run: date -u +%Y-%m-%dT%H:%M:%SZ > artifacts/metrics/phases/controller-ready.timestamp
+        run: |
+          date -u +%Y-%m-%dT%H:%M:%SZ > artifacts/metrics/phases/controller-ready.timestamp
+          kubectl -n "${RELEASE_NAMESPACE}" logs deployment/"${RELEASE_NAME}" -c manager --all-pods=true --prefix=true --since=30m > artifacts/final/informers-startup.log 2>&1 || true
 
       - name: Start metrics collection
         run: |
@@ -185,10 +199,22 @@ jobs:
       - name: Apply namespaces and workloads
         run: |
           kubectl apply -f artifacts/scenario/namespaces.yaml
-          for file in artifacts/scenario/configmaps/*.yaml; do kubectl apply -f "$file"; done
+          if compgen -G 'artifacts/scenario/configmaps/*.yaml' > /dev/null; then
+            for file in artifacts/scenario/configmaps/*.yaml; do kubectl apply -f "$file"; done
+          fi
+          if compgen -G 'artifacts/scenario/cronjobs/*.yaml' > /dev/null; then
+            for file in artifacts/scenario/cronjobs/*.yaml; do kubectl apply -f "$file"; done
+          fi
           for file in artifacts/scenario/workloads/*.yaml; do kubectl apply -f "$file"; done
           python3 scripts/kwok_orchestrate.py wait-count --resource deployments.apps,statefulsets.apps,cronjobs.batch,daemonsets.apps \
             --selector app.kubernetes.io/name=kwok-perf --expected "${WORKLOADS}" --timeout 30m
+          if [ "${CRONJOB_FIXTURES}" -gt 0 ]; then
+            python3 scripts/kwok_orchestrate.py wait-count --resource cronjobs.batch \
+              --selector perf.kubex.ai/fixture=cronjob-memory --expected "${CRONJOB_FIXTURES}" --timeout 30m
+            test "$(kubectl get cronjobs.batch -A -l perf.kubex.ai/fixture=cronjob-memory --no-headers | wc -l)" -eq "${CRONJOB_FIXTURES}"
+            test "$(kubectl get jobs.batch -A -l perf.kubex.ai/fixture=cronjob-memory --no-headers | wc -l)" -eq 0
+            test "$(kubectl get pods -A -l perf.kubex.ai/fixture=cronjob-memory --no-headers | wc -l)" -eq 0
+          fi
           date -u +%Y-%m-%dT%H:%M:%SZ > artifacts/metrics/phases/workloads-ready.timestamp
 
       - name: Apply policies

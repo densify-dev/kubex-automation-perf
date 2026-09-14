@@ -112,6 +112,53 @@ def write_configmap_batches(output_dir: Path, namespaces: list[str], count: int,
     return batch_files
 
 
+def render_cronjob_fixture(namespace: str, index: int, payload: str) -> str:
+    return build_scenario.yaml_block([
+        "apiVersion: batch/v1",
+        "kind: CronJob",
+        "metadata:",
+        f"  name: cronjob-memory-{index:06d}",
+        f"  namespace: {namespace}",
+        "  labels:",
+        "    perf.kubex.ai/fixture: cronjob-memory",
+        f"    perf.kubex.ai/fixture-index: \"{index}\"",
+        "spec:",
+        "  suspend: true",
+        "  schedule: \"0 0 31 2 *\"",
+        "  concurrencyPolicy: Forbid",
+        "  successfulJobsHistoryLimit: 0",
+        "  failedJobsHistoryLimit: 0",
+        "  jobTemplate:",
+        "    spec:",
+        "      backoffLimit: 0",
+        "      template:",
+        "        metadata:",
+        "          labels:",
+        "            perf.kubex.ai/fixture: cronjob-memory",
+        "        spec:",
+        "          restartPolicy: Never",
+        "          containers:",
+        "            - name: fixture",
+        "              image: registry.k8s.io/pause:3.9",
+        "              env:",
+        "                - name: MEMORY_FIXTURE_PAYLOAD",
+        f"                  value: {payload}",
+    ])
+
+
+def write_cronjob_fixture_batches(output_dir: Path, namespaces: list[str], count: int, batch_size: int, size: int) -> int:
+    fixture_dir = output_dir / "cronjobs"
+    fixture_dir.mkdir(parents=True, exist_ok=True)
+    payload = "x" * size
+    batch_files = 0
+    for start in range(1, count + 1, batch_size):
+        end = min(start + batch_size - 1, count)
+        documents = [render_cronjob_fixture(namespaces[(index - 1) % len(namespaces)], index, payload) for index in range(start, end + 1)]
+        (fixture_dir / f"batch-{batch_files:03d}.yaml").write_text("---\n".join(documents), encoding="utf-8")
+        batch_files += 1
+    return batch_files
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", required=True)
@@ -128,6 +175,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--daemonsets", type=int, default=10)
     parser.add_argument("--configmaps", type=int, default=10000)
     parser.add_argument("--configmap-size", type=int, default=4096)
+    parser.add_argument("--cronjob-fixtures", type=int, default=0)
+    parser.add_argument("--cronjob-payload-size", type=int, default=4096)
     parser.add_argument("--cluster-name", default="memory-release-benchmark")
     parser.add_argument("--kubex-host", default="automationtest.kubex.ai")
     parser.add_argument("--kubex-cluster-name", default="automation-memory-benchmark")
@@ -142,8 +191,8 @@ def main() -> int:
         raise ValueError(f"active compaction is unavailable in {args.release}")
     if args.workloads < 4:
         raise ValueError("--workloads must be at least 4")
-    if args.configmaps < 0 or args.configmap_size < 0:
-        raise ValueError("ConfigMap count and size must not be negative")
+    if args.configmaps < 0 or args.configmap_size < 0 or args.cronjob_fixtures < 0 or args.cronjob_payload_size < 0:
+        raise ValueError("fixture counts and payload sizes must not be negative")
     if sum((args.deployments, args.statefulsets, args.cronjobs, args.daemonsets)) != args.workloads:
         raise ValueError("workload kind counts must sum to --workloads")
 
@@ -172,6 +221,7 @@ def main() -> int:
         )
     build_scenario.write_batches(output_dir, namespaces, args.workloads, args.batch_size, counts)
     configmap_batch_files = write_configmap_batches(output_dir, namespaces, args.configmaps, args.batch_size, args.configmap_size)
+    cronjob_batch_files = write_cronjob_fixture_batches(output_dir, namespaces, args.cronjob_fixtures, args.batch_size, args.cronjob_payload_size)
     metadata = {
         "benchmark": "stable-release-memory",
         "release": args.release,
@@ -189,6 +239,11 @@ def main() -> int:
         "configmaps": args.configmaps,
         "configmap_size_bytes": args.configmap_size,
         "configmap_batch_files": configmap_batch_files,
+        "cronjob_fixtures": args.cronjob_fixtures,
+        "cronjob_payload_size_bytes": args.cronjob_payload_size,
+        "cronjob_batch_files": cronjob_batch_files,
+        "cronjobs_suspended": True,
+        "issue_ids": ["PD-60589", "PD-60602"],
         "workload_kind_counts": counts,
         "controller_install_order": "before-workload-ramp",
     }
