@@ -84,6 +84,34 @@ def render_values(kubex_host: str, cluster_name: str, release: str, mode: str) -
     return values + f"\ncompactionScheduler:\n  enabled: {enabled}\ncompactionDescheduler:\n  enabled: {enabled}\n"
 
 
+def render_configmap(namespace: str, index: int, payload: str) -> str:
+    lines = [
+        "apiVersion: v1",
+        "kind: ConfigMap",
+        "metadata:",
+        f"  name: perf-config-{index:06d}",
+        f"  namespace: {namespace}",
+        "  labels:",
+        "    app.kubernetes.io/name: kwok-perf-config",
+        "data:",
+        f"  payload: {payload}",
+    ]
+    return build_scenario.yaml_block(lines)
+
+
+def write_configmap_batches(output_dir: Path, namespaces: list[str], count: int, batch_size: int, size: int) -> int:
+    configmap_dir = output_dir / "configmaps"
+    configmap_dir.mkdir(parents=True, exist_ok=True)
+    payload = "x" * size
+    batch_files = 0
+    for start in range(1, count + 1, batch_size):
+        end = min(start + batch_size - 1, count)
+        documents = [render_configmap(namespaces[(index - 1) % len(namespaces)], index, payload) for index in range(start, end + 1)]
+        (configmap_dir / f"batch-{batch_files:03d}.yaml").write_text("---\n".join(documents), encoding="utf-8")
+        batch_files += 1
+    return batch_files
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", required=True)
@@ -98,6 +126,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--statefulsets", type=int, default=11500)
     parser.add_argument("--cronjobs", type=int, default=2000)
     parser.add_argument("--daemonsets", type=int, default=10)
+    parser.add_argument("--configmaps", type=int, default=10000)
+    parser.add_argument("--configmap-size", type=int, default=4096)
     parser.add_argument("--cluster-name", default="memory-release-benchmark")
     parser.add_argument("--kubex-host", default="automationtest.kubex.ai")
     parser.add_argument("--kubex-cluster-name", default="automation-memory-benchmark")
@@ -112,6 +142,8 @@ def main() -> int:
         raise ValueError(f"active compaction is unavailable in {args.release}")
     if args.workloads < 4:
         raise ValueError("--workloads must be at least 4")
+    if args.configmaps < 0 or args.configmap_size < 0:
+        raise ValueError("ConfigMap count and size must not be negative")
     if sum((args.deployments, args.statefulsets, args.cronjobs, args.daemonsets)) != args.workloads:
         raise ValueError("workload kind counts must sum to --workloads")
 
@@ -139,6 +171,7 @@ def main() -> int:
             render_compaction_policy("perf-compaction", namespaces), encoding="utf-8"
         )
     build_scenario.write_batches(output_dir, namespaces, args.workloads, args.batch_size, counts)
+    configmap_batch_files = write_configmap_batches(output_dir, namespaces, args.configmaps, args.batch_size, args.configmap_size)
     metadata = {
         "benchmark": "stable-release-memory",
         "release": args.release,
@@ -153,6 +186,9 @@ def main() -> int:
         "namespace_count": len(namespaces),
         "batch_size": args.batch_size,
         "batch_files": (args.workloads + args.batch_size - 1) // args.batch_size,
+        "configmaps": args.configmaps,
+        "configmap_size_bytes": args.configmap_size,
+        "configmap_batch_files": configmap_batch_files,
         "workload_kind_counts": counts,
         "controller_install_order": "before-workload-ramp",
     }

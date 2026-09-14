@@ -70,6 +70,8 @@ and later, where the CRD exists.
 The comparison uses manager-process RSS after a completed Go GC. An adjacent
 release is flagged when memory increases by at least 20% and 50 MiB. Reports
 include the raw time series, post-GC summaries, and an adjacent-release table.
+The default fixture adds 10,000 ConfigMaps with 4 KiB payloads to expose
+resource-cache memory differences; both values are workflow inputs.
 
 Generate a small local scenario with:
 

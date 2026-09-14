@@ -16,7 +16,7 @@ class MemoryScenarioTest(unittest.TestCase):
             main_args = ["--output-dir", directory, "--release", "1.8.0", "--workloads", "4", "--nodes", "2", "--namespace-count", "1", "--deployments", "1", "--statefulsets", "1", "--cronjobs", "1", "--daemonsets", "1"]
             import sys
             old = sys.argv
-            sys.argv = ["build_memory_scenario.py", *main_args]
+            sys.argv = ["build_memory_scenario.py", *main_args, "--configmaps", "0"]
             try:
                 self.assertEqual(main(), 0)
             finally:
@@ -27,7 +27,7 @@ class MemoryScenarioTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             import sys
             old = sys.argv
-            sys.argv = ["build_memory_scenario.py", "--output-dir", directory, "--release", "1.10.0", "--mode", "active", "--workloads", "4", "--nodes", "2", "--namespace-count", "1", "--deployments", "1", "--statefulsets", "1", "--cronjobs", "1", "--daemonsets", "1"]
+            sys.argv = ["build_memory_scenario.py", "--output-dir", directory, "--release", "1.10.0", "--mode", "active", "--workloads", "4", "--nodes", "2", "--namespace-count", "1", "--deployments", "1", "--statefulsets", "1", "--cronjobs", "1", "--daemonsets", "1", "--configmaps", "0"]
             try:
                 self.assertEqual(main(), 0)
             finally:

@@ -19,6 +19,14 @@ on:
         description: "Active compaction soak duration"
         required: true
         default: "15"
+      configmaps:
+        description: "Number of ConfigMaps to create"
+        required: true
+        default: "10000"
+      configmap_size:
+        description: "Payload bytes per ConfigMap"
+        required: true
+        default: "4096"
 
 concurrency:
   group: memory-release-benchmark
@@ -76,6 +84,8 @@ jobs:
       WORKLOADS: ${{ inputs.workloads || '25010' }}
       NODES: ${{ inputs.nodes || '1000' }}
       SOAK_MINUTES: ${{ matrix.mode == 'active' && (inputs.active_soak_minutes || '15') || (inputs.soak_minutes || '15') }}
+      CONFIGMAPS: ${{ inputs.configmaps || '10000' }}
+      CONFIGMAP_SIZE: ${{ inputs.configmap_size || '4096' }}
       CLUSTER_NAME: memory-${{ matrix.mode }}-${{ matrix.release }}
       RELEASE_NAME: kubex-automation-engine
       RELEASE_NAMESPACE: kubex
@@ -139,6 +149,8 @@ jobs:
             --statefulsets "${statefulsets}" \
             --cronjobs "${cronjobs}" \
             --daemonsets "${daemonsets}" \
+            --configmaps "${CONFIGMAPS}" \
+            --configmap-size "${CONFIGMAP_SIZE}" \
             --cluster-name "${CLUSTER_NAME}" \
             --kubex-host "${KUBEX_URL_HOST}" \
             --kubex-cluster-name "${KUBEX_CLUSTER_NAME}"
@@ -173,6 +185,7 @@ jobs:
       - name: Apply namespaces and workloads
         run: |
           kubectl apply -f artifacts/scenario/namespaces.yaml
+          for file in artifacts/scenario/configmaps/*.yaml; do kubectl apply -f "$file"; done
           for file in artifacts/scenario/workloads/*.yaml; do kubectl apply -f "$file"; done
           python3 scripts/kwok_orchestrate.py wait-count --resource deployments.apps,statefulsets.apps,cronjobs.batch,daemonsets.apps \
             --selector app.kubernetes.io/name=kwok-perf --expected "${WORKLOADS}" --timeout 30m
