@@ -57,3 +57,32 @@ The workflow is manually runnable too, with inputs for:
 
 - The harness is intentionally StaticPolicy-only for the first cut.
 - Long-term trend storage is published to the `gh-pages` branch after each nightly run.
+
+## Stable release memory benchmark
+
+Workflow: `.github/workflows/memory-release-benchmark.yml`
+
+The manual release sweep compares `1.8.0`, `1.9.0`, `1.9.1`, `1.10.0`,
+`1.11.0`, `1.11.1`, and `1.11.2` using the same KWOK workload profile. Passive
+scenarios run for every release. Active compaction scenarios run for `1.10.0`
+and later, where the CRD exists.
+
+The comparison uses manager-process RSS after a completed Go GC. An adjacent
+release is flagged when memory increases by at least 20% and 50 MiB. Reports
+include the raw time series, post-GC summaries, and an adjacent-release table.
+
+Generate a small local scenario with:
+
+```bash
+python3 scripts/build_memory_scenario.py \
+  --output-dir /tmp/memory-scenario \
+  --release 1.10.0 \
+  --mode active \
+  --workloads 4 \
+  --nodes 2 \
+  --namespace-count 1 \
+  --deployments 1 \
+  --statefulsets 1 \
+  --cronjobs 1 \
+  --daemonsets 1
+```

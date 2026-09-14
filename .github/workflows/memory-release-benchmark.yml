@@ -1,0 +1,242 @@
+name: memory-release-benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      workloads:
+        description: "Number of workloads"
+        required: true
+        default: "25010"
+      nodes:
+        description: "Number of KWOK nodes"
+        required: true
+        default: "1000"
+      soak_minutes:
+        description: "Steady-state soak duration"
+        required: true
+        default: "15"
+      active_soak_minutes:
+        description: "Active compaction soak duration"
+        required: true
+        default: "15"
+
+concurrency:
+  group: memory-release-benchmark
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - release: "1.8.0"
+            crd_version: "1.8.0"
+            mode: passive
+          - release: "1.9.0"
+            crd_version: "1.9.0"
+            mode: passive
+          - release: "1.9.1"
+            crd_version: "1.9.0"
+            mode: passive
+          - release: "1.10.0"
+            crd_version: "1.10.0"
+            mode: passive
+          - release: "1.11.0"
+            crd_version: "1.11.0"
+            mode: passive
+          - release: "1.11.1"
+            crd_version: "1.11.1"
+            mode: passive
+          - release: "1.11.2"
+            crd_version: "1.11.2"
+            mode: passive
+          - release: "1.10.0"
+            crd_version: "1.10.0"
+            mode: active
+          - release: "1.11.0"
+            crd_version: "1.11.0"
+            mode: active
+          - release: "1.11.1"
+            crd_version: "1.11.1"
+            mode: active
+          - release: "1.11.2"
+            crd_version: "1.11.2"
+            mode: active
+    env:
+      RELEASE: ${{ matrix.release }}
+      CRD_VERSION: ${{ matrix.crd_version }}
+      MODE: ${{ matrix.mode }}
+      WORKLOADS: ${{ inputs.workloads || '25010' }}
+      NODES: ${{ inputs.nodes || '1000' }}
+      SOAK_MINUTES: ${{ matrix.mode == 'active' && (inputs.active_soak_minutes || '15') || (inputs.soak_minutes || '15') }}
+      CLUSTER_NAME: memory-${{ matrix.mode }}-${{ matrix.release }}
+      RELEASE_NAME: kubex-automation-engine
+      RELEASE_NAMESPACE: kubex
+      KWOK_VERSION: v0.5.1
+      KUBEX_CLUSTER_NAME: ${{ secrets.KUBEX_CLUSTER_NAME }}
+      KUBEX_URL_HOST: ${{ secrets.KUBEX_URL_HOST }}
+      KUBEX_USERNAME: ${{ secrets.KUBEX_USERNAME }}
+      KUBEX_EPASSWORD: ${{ secrets.KUBEX_EPASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.3
+
+      - uses: kubernetes-sigs/kwok@main
+        with:
+          command: kwokctl
+          kwok-version: ${{ env.KWOK_VERSION }}
+
+      - name: Create cluster
+        env:
+          KWOK_KUBE_VERSION: v1.30.0
+        run: |
+          curl -fsSL -o metrics-usage.yaml "https://github.com/kubernetes-sigs/kwok/releases/download/${KWOK_VERSION}/metrics-usage.yaml"
+          kwokctl create cluster --runtime kind --name "${CLUSTER_NAME}" --enable-metrics-server -c metrics-usage.yaml
+          kwokctl scale node --name "${CLUSTER_NAME}" --replicas "${NODES}"
+          kwokctl get kubeconfig --name "${CLUSTER_NAME}" > kwok.kubeconfig
+          echo "KUBECONFIG=${PWD}/kwok.kubeconfig" >> "$GITHUB_ENV"
+          kubectl wait --for=condition=Ready node --all --timeout=10m
+          kubectl get nodes -o wide
+          kubectl uncordon "$(kubectl get nodes -l node-role.kubernetes.io/control-plane -o jsonpath='{.items[0].metadata.name}')"
+
+      - name: Generate scenario
+        run: |
+          if [ "${WORKLOADS}" -eq 25010 ]; then
+            deployments=11500
+            statefulsets=11500
+            cronjobs=2000
+            daemonsets=10
+          else
+            deployments=$((WORKLOADS * 46 / 100))
+            statefulsets=$((WORKLOADS * 46 / 100))
+            daemonsets=1
+            cronjobs=$((WORKLOADS - deployments - statefulsets - daemonsets))
+          fi
+          python3 scripts/build_memory_scenario.py \
+            --output-dir artifacts/scenario \
+            --release "${RELEASE}" \
+            --crd-version "${CRD_VERSION}" \
+            --mode "${MODE}" \
+            --workloads "${WORKLOADS}" \
+            --nodes "${NODES}" \
+            --namespace-count 1000 \
+            --deployments "${deployments}" \
+            --statefulsets "${statefulsets}" \
+            --cronjobs "${cronjobs}" \
+            --daemonsets "${daemonsets}" \
+            --cluster-name "${CLUSTER_NAME}" \
+            --kubex-host "${KUBEX_URL_HOST}" \
+            --kubex-cluster-name "${KUBEX_CLUSTER_NAME}"
+          mkdir -p artifacts/metrics/phases artifacts/final artifacts/report
+
+      - name: Install release
+        run: |
+          helm repo add kubex https://densify-dev.github.io/helm-charts
+          helm repo update
+          helm upgrade --install kubex-crds kubex/kubex-crds --version "${CRD_VERSION}" --namespace kubex --create-namespace
+          helm upgrade --install "${RELEASE_NAME}" kubex/kubex-automation-engine \
+            --version "${RELEASE}" --namespace "${RELEASE_NAMESPACE}" --create-namespace \
+            --set-string kubexCredentials.username="${KUBEX_USERNAME}" \
+            --set-string kubexCredentials.epassword="${KUBEX_EPASSWORD}" \
+            -f artifacts/scenario/install-values.yaml
+          kubectl -n "${RELEASE_NAMESPACE}" patch deployment "${RELEASE_NAME}" --type=json -p='[
+            {"op":"add","path":"/spec/template/spec/hostNetwork","value":true},
+            {"op":"add","path":"/spec/template/spec/dnsPolicy","value":"ClusterFirstWithHostNet"}
+          ]'
+          python3 scripts/kwok_orchestrate.py wait-controller-health --namespace "${RELEASE_NAMESPACE}" --release "${RELEASE_NAME}" --timeout 20m
+
+      - name: Mark controller ready
+        run: date -u +%Y-%m-%dT%H:%M:%SZ > artifacts/metrics/phases/controller-ready.timestamp
+
+      - name: Start metrics collection
+        run: |
+          nohup bash scripts/collect_metrics.sh --namespace "${RELEASE_NAMESPACE}" --release "${RELEASE_NAME}" \
+            --output-dir artifacts/metrics --stop-file artifacts/metrics/stop --interval 15 \
+            > artifacts/metrics/collector.log 2>&1 &
+          echo $! > artifacts/metrics/collector.pid
+
+      - name: Apply namespaces and workloads
+        run: |
+          kubectl apply -f artifacts/scenario/namespaces.yaml
+          for file in artifacts/scenario/workloads/*.yaml; do kubectl apply -f "$file"; done
+          python3 scripts/kwok_orchestrate.py wait-count --resource deployments.apps,statefulsets.apps,cronjobs.batch,daemonsets.apps \
+            --selector app.kubernetes.io/name=kwok-perf --expected "${WORKLOADS}" --timeout 30m
+          date -u +%Y-%m-%dT%H:%M:%SZ > artifacts/metrics/phases/workloads-ready.timestamp
+
+      - name: Apply policies
+        run: |
+          kubectl apply -f artifacts/scenario/strategy.yaml
+          kubectl apply -f artifacts/scenario/policy.yaml
+          if [ "${MODE}" = active ]; then
+            kubectl apply -f artifacts/scenario/compaction-policy.yaml
+            kubectl wait --for=jsonpath='{.status.conditions[0].status}'=True clustercompactionpolicy/perf-compaction --timeout=5m || true
+          fi
+          date -u +%Y-%m-%dT%H:%M:%SZ > artifacts/metrics/phases/policy-applied.timestamp
+          date -u +%Y-%m-%dT%H:%M:%SZ > artifacts/metrics/phases/soak-start.timestamp
+
+      - name: Soak
+        run: sleep "$((SOAK_MINUTES * 60))"
+
+      - name: Mark soak complete
+        if: always()
+        run: date -u +%Y-%m-%dT%H:%M:%SZ > artifacts/metrics/phases/soak-end.timestamp
+
+      - name: Stop collection and collect final state
+        if: always()
+        run: |
+          touch artifacts/metrics/stop
+          if [ -f artifacts/metrics/collector.pid ]; then kill "$(cat artifacts/metrics/collector.pid)" 2>/dev/null || true; fi
+          bash scripts/collect_final_state.sh --namespace "${RELEASE_NAMESPACE}" --release "${RELEASE_NAME}" --output-dir artifacts/final || true
+
+      - name: Summarize
+        if: always()
+        run: |
+          python3 scripts/summarize_memory_run.py --metadata artifacts/scenario/metadata.json --metrics-dir artifacts/metrics --output-dir artifacts/report || true
+          cat artifacts/report/memory-summary.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload run artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: memory-run-${{ matrix.mode }}-${{ matrix.release }}
+          path: artifacts
+          if-no-files-found: warn
+
+  compare:
+    if: always()
+    needs: sweep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: memory-run-*
+          path: artifacts/runs
+          merge-multiple: false
+      - name: Compare releases
+        run: |
+          set +e
+          python3 scripts/compare_memory_releases.py --input-dir artifacts/runs --output-dir artifacts/comparison
+          rc=$?
+          cat artifacts/comparison/release-memory.md >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: memory-release-comparison
+          path: artifacts/comparison
