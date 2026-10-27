@@ -1,113 +1,100 @@
 {
-  "controller_install_order": "before-workload-ramp",
-  "controller_max_cpu_mcores": 975.0,
-  "controller_max_memory_mib": 1868.0,
-  "data_issues": [],
-  "data_status": "valid",
+  "controller_install_order": "after-workload-ramp",
+  "controller_max_cpu_mcores": 998.0,
+  "controller_max_memory_mib": 1747.0,
+  "data_issues": [
+    "3 metrics scrape(s) failed",
+    "unavailable final counts: pods"
+  ],
+  "data_status": "degraded",
   "deployments_observed": 11500,
-  "generated_at": "2026-10-27T03:02:02.087127+00:00",
+  "generated_at": "2026-10-27T03:41:54.659249+00:00",
   "key_metrics": {
-    "controller_max_cpu_mcores": 975.0,
-    "controller_max_memory_mib": 1868.0,
-    "controller_runtime_reconcile_errors_total": 847.0,
-    "controller_runtime_reconcile_total": 30774.0,
-    "empty_metrics_snapshots": 0,
+    "controller_max_cpu_mcores": 998.0,
+    "controller_max_memory_mib": 1747.0,
+    "controller_runtime_reconcile_errors_total": 5.0,
+    "controller_runtime_reconcile_total": 5773.0,
+    "empty_metrics_snapshots": 3,
     "expected_live_pods_from_daemonsets": 10000,
     "expected_steady_state_live_pods": 33000,
-    "final_pods_observed": 20344,
-    "go_goroutines": 856.0,
-    "latest_live_pods_observed": 19972,
-    "live_count_snapshots": 14,
-    "live_pod_delta_vs_target": -13028,
-    "metrics_capture_issue": "ok",
-    "metrics_snapshots": 91,
+    "final_pods_observed": null,
+    "go_goroutines": 841.0,
+    "latest_live_pods_observed": 34734,
+    "live_count_snapshots": 10,
+    "live_pod_delta_vs_target": 1734,
+    "metrics_capture_issue": "3 metrics scrape(s) failed",
+    "metrics_snapshots": 31,
     "pod_bearing_workload_objects_observed": 25010,
-    "process_cpu_seconds_total": 891.45,
-    "process_resident_memory_bytes": 1731244032.0,
-    "top_snapshots": 91,
-    "valid_metrics_snapshots": 91,
-    "valid_top_snapshots": 91,
+    "process_cpu_seconds_total": 53.42,
+    "process_resident_memory_bytes": 1670021120.0,
+    "top_snapshots": 31,
+    "valid_metrics_snapshots": 28,
+    "valid_top_snapshots": 27,
     "workload_objects_observed": 25010,
-    "workload_pods_observed": 19972,
-    "workqueue_depth": 10394.0
+    "workload_pods_observed": 34734,
+    "workqueue_depth": 24600.0
   },
   "live_counts": [
     {
-      "pods": 0,
-      "timestamp": "20261027T023028Z"
+      "pods": 35000,
+      "timestamp": "20261027T030852Z"
     },
     {
-      "pods": 215,
-      "timestamp": "20261027T023237Z"
+      "pods": 35000,
+      "timestamp": "20261027T031107Z"
     },
     {
-      "pods": 838,
-      "timestamp": "20261027T023445Z"
+      "pods": 35000,
+      "timestamp": "20261027T031322Z"
     },
     {
-      "pods": 1670,
-      "timestamp": "20261027T023653Z"
+      "pods": 35000,
+      "timestamp": "20261027T031703Z"
     },
     {
-      "pods": 2937,
-      "timestamp": "20261027T023903Z"
+      "pods": 35000,
+      "timestamp": "20261027T031911Z"
     },
     {
-      "pods": 4235,
-      "timestamp": "20261027T024114Z"
+      "pods": 34960,
+      "timestamp": "20261027T032115Z"
     },
     {
-      "pods": 5792,
-      "timestamp": "20261027T024327Z"
+      "pods": 34906,
+      "timestamp": "20261027T032314Z"
     },
     {
-      "pods": 8853,
-      "timestamp": "20261027T024532Z"
+      "pods": 34844,
+      "timestamp": "20261027T032529Z"
     },
     {
-      "pods": 12100,
-      "timestamp": "20261027T024747Z"
+      "pods": 34785,
+      "timestamp": "20261027T032729Z"
     },
     {
-      "pods": 15044,
-      "timestamp": "20261027T024953Z"
-    },
-    {
-      "pods": 18049,
-      "timestamp": "20261027T025201Z"
-    },
-    {
-      "pods": 18836,
-      "timestamp": "20261027T025405Z"
-    },
-    {
-      "pods": 19387,
-      "timestamp": "20261027T025608Z"
-    },
-    {
-      "pods": 19972,
-      "timestamp": "20261027T025814Z"
+      "pods": 34734,
+      "timestamp": "20261027T032931Z"
     }
   ],
   "metrics": {
-    "controller_runtime_reconcile_errors_total": 847.0,
-    "controller_runtime_reconcile_total": 30774.0,
-    "go_goroutines": 856.0,
-    "process_cpu_seconds_total": 891.45,
-    "process_resident_memory_bytes": 1731244032.0,
-    "workqueue_depth": 10394.0
+    "controller_runtime_reconcile_errors_total": 5.0,
+    "controller_runtime_reconcile_total": 5773.0,
+    "go_goroutines": 841.0,
+    "process_cpu_seconds_total": 53.42,
+    "process_resident_memory_bytes": 1670021120.0,
+    "workqueue_depth": 24600.0
   },
-  "metrics_snapshots": 91,
+  "metrics_snapshots": 31,
   "nodes": 1000,
-  "pods_observed": 20344,
+  "pods_observed": null,
   "ref_name": "main",
   "run_attempt": 1,
   "run_id": 40438336265,
-  "run_key": "40438336265:before-workload-ramp",
+  "run_key": "40438336265:after-workload-ramp",
   "run_number": 214,
   "run_url": "https://github.com/densify-dev/kubex-automation-perf/actions/runs/40438336265",
   "sha": "c31848cebb6e3c7be2a48a8205af3f1354eeceda",
   "status": "success",
-  "top_snapshots": 91,
+  "top_snapshots": 31,
   "workloads": 25010
 }
